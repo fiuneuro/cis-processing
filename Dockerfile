@@ -159,5 +159,5 @@ WORKDIR /home/neuro
 #----------------------
 # Set entrypoint script
 #----------------------
-COPY scripts/ /scripts/
+COPY bidsifier/ /scripts/
 ENTRYPOINT ["/neurodocker/startup.sh", "/scripts/run.py"]
