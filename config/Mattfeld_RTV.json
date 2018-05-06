@@ -1,4 +1,6 @@
 {
+    "bidsifier": "cis_bidsify_v0.0.1-2018-04-28-06e3209e6b46.img",
+    "heuristics": "heuristics/Mattfeld_RTV.py",
     "mriqc": "poldracklab_mriqc_0.10.4-2018-03-23-8fb5f5e9184f.img",
     "mriqc_settings": {
         "fd_thres": 0.5
