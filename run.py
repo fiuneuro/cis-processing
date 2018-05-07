@@ -6,8 +6,12 @@ import os
 import os.path as op
 import json
 import shutil
+import tarfile
 import argparse
 import subprocess
+from glob import glob
+
+import pandas as pd
 
 
 def run(command, env={}):
@@ -53,29 +57,22 @@ def main(argv=None):
     args = get_parser().parse_args(argv)
 
     # Check inputs
-    if not args.output_dir.startswith('/scratch'):
-        raise ValueError('Output directory must be in scratch.')
-
     if args.work_dir is None:
         args.work_dir = '/scratch/cis_dataqc/'
 
-    args.work_dir = op.join(args.work_dir,
-                            '{0}-{1}-{2}'.format(args.project, args.sub,
-                                                 args.ses))
+    args.work_dir = op.join(args.work_dir, '{0}-{1}-{2}'.format(args.project,
+                                                                args.sub,
+                                                                args.ses))
 
     if not args.work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
 
     '''
-    if not args.work_dir.startswith('/scratch'):
-        raise ValueError('Working directory must be in scratch.')
-
     if not op.isdir(args.dicom_dir):
         raise ValueError('Argument "dicom_dir" must be an existing directory.')
-
+    '''
     if not op.isfile(args.config):
         raise ValueError('Argument "config" must be an existing file.')
-    '''
 
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
@@ -84,6 +81,10 @@ def main(argv=None):
                              config_options['bidsifier'])
     mriqc_file = op.join('/home/data/nbc/singularity_images/',
                          config_options['mriqc'])
+    mriqc_version = mriqc_file.split('-')[0].split('_')[-1]
+
+    out_deriv_dir = op.join(args.bids_dir,
+                            'derivatives/mriqc-{0}'.format(mriqc_version))
 
     '''
     # Additional checks and copying for heuristics file
@@ -100,12 +101,28 @@ def main(argv=None):
     # Make folders/files
     os.makedirs(args.work_dir, exist_ok=True)
     os.makedirs(args.bids_dir, exist_ok=True)
+    os.makedirs(out_deriv_dir, exist_ok=True)
+    os.makedirs(op.join(out_deriv_dir, 'derivatives'), exist_ok=True)
+    os.makedirs(op.join(out_deriv_dir, 'logs'), exist_ok=True)
+    os.makedirs(op.join(out_deriv_dir, 'reports'), exist_ok=True)
     shutil.copyfile(config_options['heuristics'],
                     op.join(args.work_dir, 'heuristics.py'))
     '''
 
+    # Temporary BIDS directory in work_dir
+    scratch_bids_dir = op.join(args.work_dir, 'bids')
+    scratch_deriv_dir = op.join(scratch_bids_dir, 'derivatives')
+    mriqc_work_dir = op.join(args.work_dir, 'work')
+
     # TODO: tar dicoms
-    # TODO: copy tar file to work_dir/
+    # Tar dicom folders into single file
+    tarred_file = op.join(args.work_dir,
+                          'sub-{0}-ses-{1}.tar'.format(args.sub, args.ses))
+    with tarfile.open(tarred_file, 'w') as tar:
+        tar.add(args.dicom_dir, arcname='scans/')
+
+    # Copy tar file to work_dir/
+    shutil.copyfile(tarred_file, args.work_dir)
 
     # Run BIDSifier
     cmd = ('{sing} -d {work} --heuristics {heur} --project {proj} --sub {sub} '
@@ -114,38 +131,80 @@ def main(argv=None):
                                 sub=args.sub, ses=args.ses, proj=args.project))
     print(cmd)
 
-    # Temporary BIDS directory in work_dir
-    scratch_bids_dir = op.join(args.work_dir, 'bids')
-    scratch_deriv_dir = op.join(scratch_bids_dir, 'derivatives')
-    mriqc_work_dir = op.join(args.work_dir, 'work')
+    # Check if BIDSification ran successfully
+    bids_successful = False
+    with open(op.join(args.work_dir, 'validator.txt'), 'r') as fo:
+        validator_result = fo.read()
 
-    # Run merge_files and check if BIDSification ran successfully
-    cmd = ('./merge_files.sh {work} {bids} {proj} {sub} '
-           '{ses}'.format(work=args.work_dir, bids=args.bids_dir,
-                          sub=args.sub, ses=args.ses, proj=args.project))
-    print(cmd)
+    if "This dataset appears to be BIDS compatible" in validator_result:
+        bids_successful = True
+    os.remove(op.join(args.work_dir, 'validator.txt'))
 
-    # TODO: Check success of BIDSification. Only run MRIQC if successful.
-    # Run MRIQC
-    kwargs = ''
-    for field in config_options['mriqc_settings'].keys():
-        if isinstance(config_options['mriqc_settings'][field], list):
-            val = ' '.join(config_options['mriqc_settings'][field])
+    if bids_successful:
+        # Merge BIDS dataset into final folder
+        dset_files = ['CHANGES', 'README', 'dataset_description.json']
+        for dset_file in dset_files:
+            if not op.isfile(op.join(args.bids_dir, dset_file)):
+                shutil.copyfile(op.join(args.work_dir, 'bids', dset_file),
+                                op.join(args.bids_dir, dset_file))
+
+        p_df = pd.read_csv(op.join(args.work_dir, 'bids/participants.tsv'),
+                           sep='\t')
+        p_df2 = pd.read_csv(op.join(args.bids_dir, 'participants.tsv'),
+                            sep='\t')
+        # Check if row already in participants file
+        matches = p_df[(p_df == p_df2.loc[0]).all(axis=1)]
+        match = matches.index.values.size
+        if not match:
+            p_df = pd.concat((p_df, p_df2))
+            p_df.to_csv(op.join(args.work_dir, 'bids/participants.tsv'),
+                        sep='\t', index=False)
         else:
-            val = config_options['mriqc_settings'][field]
-        kwargs += '--{0} {1} '.format(field, val)
-    kwargs = kwargs.rstrip()
-    cmd = ('{sing} {bids} {out} participant --participant-label '
-           '{sub} --session-id {ses} --no-sub --verbose-reports --ica '
-           '--correct-slice-timing -w {work} '
-           '{kwargs}'.format(sing=mriqc_file, bids=scratch_bids_dir,
-                             out=scratch_deriv_dir, sub=args.sub,
-                             ses=args.ses, work=mriqc_work_dir,
-                             kwargs=kwargs))
-    print(cmd)
+            print('Subject/session already found in participants.tsv')
 
-    # TODO: Copy scratch BIDS directory back to real BIDS directory
-    # TODO: Copy scratch derivatives to real derivatives
+        # Run MRIQC
+        kwargs = ''
+        for field in config_options['mriqc_settings'].keys():
+            if isinstance(config_options['mriqc_settings'][field], list):
+                val = ' '.join(config_options['mriqc_settings'][field])
+            else:
+                val = config_options['mriqc_settings'][field]
+            kwargs += '--{0} {1} '.format(field, val)
+        kwargs = kwargs.rstrip()
+        cmd = ('{sing} {bids} {out} --no-sub --verbose-reports --ica '
+               '--correct-slice-timing -w {work} '
+               '{kwargs}'.format(sing=mriqc_file, bids=scratch_bids_dir,
+                                 out=scratch_deriv_dir, work=mriqc_work_dir,
+                                 kwargs=kwargs))
+        print(cmd)
+
+        # Merge MRIQC results into final derivatives folder
+        reports = glob(op.join(scratch_deriv_dir, 'mriqc/reports/*.html'))
+        reports = [f for f in reports if '_group' not in op.basename(f)]
+        for report in reports:
+            shutil.copy(report, op.join(out_deriv_dir, 'reports'))
+
+        logs = glob(op.join(scratch_deriv_dir, 'mriqc/logs/*'))
+        for log in logs:
+            shutil.copy(log, op.join(out_deriv_dir, 'logs'))
+
+        derivatives = glob(op.join(scratch_deriv_dir, 'mriqc/derivatives/*'))
+        for derivative in derivatives:
+            shutil.copy(derivative, op.join(out_deriv_dir, 'derivatives'))
+
+        csv_files = glob(op.join(scratch_deriv_dir, 'mriqc/*.csv'))
+        for csv_file in csv_files:
+            out_file = op.join(out_deriv_dir, op.basename(csv_file))
+            if not op.isfile(out_file):
+                shutil.copyfile(csv_file, out_file)
+            else:
+                new_df = pd.read_csv(csv_file)
+                old_df = pd.read_csv(out_file)
+                out_df = pd.concat((old_df, new_df))
+                out_df.to_csv(out_file, index=False)
+    else:
+        print('Heudiconv-generated dataset failed BIDS validator. '
+              'Not running MRIQC')
 
 
 if __name__ == '__main__':
