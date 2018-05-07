@@ -1,6 +1,6 @@
 # chmod stuff
-chmod 774 scripts/*.py
-chmod 774 scripts/*.sh
+chmod 774 bidsifier/*.py
+chmod 774 bidsifier/*.sh
 
 docker build -t cis/bidsify:v0.0.1 .
 

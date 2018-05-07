@@ -23,35 +23,38 @@ sess=$5
 
 # Put data in BIDS format
 heudiconv -d $scratchdir/sub-{subject}-ses-{session}.tar \
-    -s $sub -ss $sess -f $heuristics -c dcm2niix \
-    -o $scratchdir/bids/ --bids --overwrite
+  -s $sub -ss $sess -f $heuristics -c dcm2niix \
+  -o $scratchdir/bids/ --bids --overwrite
 
 ##############################################
 # Check results, anonymize, and clean metadata
 ##############################################
 if [ -d $scratchdir/bids/sub-$sub/ses-$sess ]; then
-    chmod -R 774 $scratchdir/bids/sub-$sub/ses-$sess
+  chmod -R 774 $scratchdir/bids/sub-$sub/ses-$sess
 
-    # Deface structural scans
-    imglist=$(ls $scratchdir/bids/sub-$sub/ses-$sess/anat/*.nii.gz)
-    for tmpimg in $imglist; do
-        mri_deface $tmpimg /src/deface/talairach_mixed_with_skull.gca \
-            /src/deface/face.gca $tmpimg
-    done
-    rm ./*.log
+  # Deface structural scans
+  imglist=$(ls $scratchdir/bids/sub-$sub/ses-$sess/anat/*.nii.gz)
+  for tmpimg in $imglist; do
+    mri_deface $tmpimg /src/deface/talairach_mixed_with_skull.gca \
+      /src/deface/face.gca $tmpimg
+  done
+  rm ./*.log
 
-		# Add IntendedFor and TotalReadoutTime fields to jsons
-    python complete_jsons.py -d $scratchdir/bids/ -s $sub \
-        -ss $sess --overwrite
+	# Add IntendedFor and TotalReadoutTime fields to jsons
+  python complete_jsons.py -d $scratchdir/bids/ -s $sub \
+    -ss $sess --overwrite
 
-		# Remove extraneous fields from jsons
-    python clean_metadata.py $scratchdir/bids/
+	# Remove extraneous fields from jsons
+  python clean_metadata.py $scratchdir/bids/
 
-    # Validate dataset and, if it passes, copy files to outdir
-		bids-validator $scratchdir/bids/ > $scratchdir/validator.txt
+  # TODO: Extract age, weight, and sex from dicoms and add to
+  # participants.tsv
+
+  # Validate dataset and, if it passes, copy files to outdir
+	bids-validator $scratchdir/bids/ > $scratchdir/validator.txt
 else
-    echo "FAILED" > $scratchdir/validator.txt
-	  echo "Heudiconv failed to convert this dataset to BIDS format."
+  echo "FAILED" > $scratchdir/validator.txt
+  echo "Heudiconv failed to convert this dataset to BIDS format."
 fi
 ######################################
 ######################################
