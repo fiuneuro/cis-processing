@@ -67,10 +67,9 @@ def main(argv=None):
     if not args.work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
 
-    '''
     if not op.isdir(args.dicom_dir):
         raise ValueError('Argument "dicom_dir" must be an existing directory.')
-    '''
+
     if not op.isfile(args.config):
         raise ValueError('Argument "config" must be an existing file.')
 
@@ -86,7 +85,6 @@ def main(argv=None):
     out_deriv_dir = op.join(args.bids_dir,
                             'derivatives/mriqc-{0}'.format(mriqc_version))
 
-    '''
     # Additional checks and copying for heuristics file
     if not op.isfile(config_options['heuristics']):
         raise ValueError('Heuristics file specified in config files must be '
@@ -107,19 +105,17 @@ def main(argv=None):
     os.makedirs(op.join(out_deriv_dir, 'reports'), exist_ok=True)
     shutil.copyfile(config_options['heuristics'],
                     op.join(args.work_dir, 'heuristics.py'))
-    '''
 
     # Temporary BIDS directory in work_dir
     scratch_bids_dir = op.join(args.work_dir, 'bids')
     scratch_deriv_dir = op.join(scratch_bids_dir, 'derivatives')
     mriqc_work_dir = op.join(args.work_dir, 'work')
 
-    # TODO: tar dicoms
     # Tar dicom folders into single file
     tarred_file = op.join(args.work_dir,
                           'sub-{0}-ses-{1}.tar'.format(args.sub, args.ses))
     with tarfile.open(tarred_file, 'w') as tar:
-        tar.add(args.dicom_dir, arcname='scans/')
+        tar.add(args.dicom_dir)
 
     # Copy tar file to work_dir/
     shutil.copyfile(tarred_file, args.work_dir)
@@ -132,7 +128,7 @@ def main(argv=None):
     print(cmd)
 
     # Check if BIDSification ran successfully
-    bids_successful = False
+    bids_successful = True
     with open(op.join(args.work_dir, 'validator.txt'), 'r') as fo:
         validator_result = fo.read()
 

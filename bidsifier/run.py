@@ -4,8 +4,14 @@ From https://github.com/BIDS-Apps/example/blob/aa0d4808974d79c9fbe54d56d3b47bb2c
 """
 import os
 import os.path as op
+import tarfile
 import argparse
 import subprocess
+
+import pydicom
+import numpy as np
+import pandas as pd
+from dateutil.parser import parse
 
 
 def run(command, env={}):
@@ -46,11 +52,14 @@ def main(argv=None):
     args = get_parser().parse_args(argv)
 
     # Check inputs
+    tar_file = op.join(args.dicom_dir, 'sub-{0}-ses-{1}.tar'.format(args.sub,
+                                                                    args.ses))
     if not args.dicom_dir.startswith('/scratch'):
         raise ValueError('Dicom files must be in scratch.')
 
-    if not op.isdir(args.dicom_dir):
-        raise ValueError('Argument "dicom_dir" must be an existing directory.')
+    if not op.isfile(tar_file):
+        raise ValueError('Argument "dicom_dir" must contain a file '
+                         'named {0}.'.format(op.basename(tar_file)))
 
     if not op.isfile(args.heuristics):
         raise ValueError('Argument "heuristics" must be an existing file.')
@@ -61,6 +70,24 @@ def main(argv=None):
                                                          args.project,
                                                          args.sub, args.ses))
     run(cmd)
+
+    # Grab some info to add to the participants file
+    participants_file = op.join(args.dicom_dir, 'bids/participants.tsv')
+    df = pd.read_csv(participants_file, sep='\t')
+    with tarfile.open(tar_file, 'r') as tar:
+        dicoms = [mem for mem in tar.getmembers() if mem.name.endswith('.dcm')]
+        f_obj = tar.extractfile(dicoms[0])
+        data = pydicom.read_file(f_obj)
+
+    if data.PatientBirthDate:
+        age = parse(data.StudyDate) - parse(data.PatientBirthDate)
+        age = np.round(age.days / 365.25, 2)
+    else:
+        age = np.nan
+    df2 = pd.DataFrame(columns=['age', 'sex', 'weight'],
+                       data=[[age, data.PatientSex, data.PatientWeight]])
+    df = pd.concat((df, df2), axis=1)
+    df.to_csv(participants_file, sep='\t', index=False)
 
 
 if __name__ == '__main__':
