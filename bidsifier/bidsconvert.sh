@@ -40,18 +40,15 @@ if [ -d $scratchdir/bids/sub-$sub/ses-$sess ]; then
   done
   rm ./*.log
 
-	# Add IntendedFor and TotalReadoutTime fields to jsons
+  # Add IntendedFor and TotalReadoutTime fields to jsons
   python complete_jsons.py -d $scratchdir/bids/ -s $sub \
     -ss $sess --overwrite
 
-	# Remove extraneous fields from jsons
+  # Remove extraneous fields from jsons
   python clean_metadata.py $scratchdir/bids/
 
-  # TODO: Extract age, weight, and sex from dicoms and add to
-  # participants.tsv
-
   # Validate dataset and, if it passes, copy files to outdir
-	bids-validator $scratchdir/bids/ > $scratchdir/validator.txt
+  bids-validator $scratchdir/bids/ > $scratchdir/validator.txt
 else
   echo "FAILED" > $scratchdir/validator.txt
   echo "Heudiconv failed to convert this dataset to BIDS format."

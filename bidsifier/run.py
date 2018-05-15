@@ -73,21 +73,23 @@ def main(argv=None):
 
     # Grab some info to add to the participants file
     participants_file = op.join(args.dicom_dir, 'bids/participants.tsv')
-    df = pd.read_csv(participants_file, sep='\t')
-    with tarfile.open(tar_file, 'r') as tar:
-        dicoms = [mem for mem in tar.getmembers() if mem.name.endswith('.dcm')]
-        f_obj = tar.extractfile(dicoms[0])
-        data = pydicom.read_file(f_obj)
+    if op.isfile(participants_file):
+        df = pd.read_csv(participants_file, sep='\t')
+        with tarfile.open(tar_file, 'r') as tar:
+            dicoms = [mem for mem in tar.getmembers() if
+                      mem.name.endswith('.dcm')]
+            f_obj = tar.extractfile(dicoms[0])
+            data = pydicom.read_file(f_obj)
 
-    if data.PatientBirthDate:
-        age = parse(data.StudyDate) - parse(data.PatientBirthDate)
-        age = np.round(age.days / 365.25, 2)
-    else:
-        age = np.nan
-    df2 = pd.DataFrame(columns=['age', 'sex', 'weight'],
-                       data=[[age, data.PatientSex, data.PatientWeight]])
-    df = pd.concat((df, df2), axis=1)
-    df.to_csv(participants_file, sep='\t', index=False)
+        if data.PatientBirthDate:
+            age = parse(data.StudyDate) - parse(data.PatientBirthDate)
+            age = np.round(age.days / 365.25, 2)
+        else:
+            age = np.nan
+        df2 = pd.DataFrame(columns=['age', 'sex', 'weight'],
+                           data=[[age, data.PatientSex, data.PatientWeight]])
+        df = pd.concat((df, df2), axis=1)
+        df.to_csv(participants_file, sep='\t', index=False)
 
 
 if __name__ == '__main__':

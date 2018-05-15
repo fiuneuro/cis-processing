@@ -56,9 +56,11 @@ def get_parser():
 def main(argv=None):
     args = get_parser().parse_args(argv)
 
+    CIS_DIR = '/scratch/cis_dataqc/'
+
     # Check inputs
     if args.work_dir is None:
-        args.work_dir = '/scratch/cis_dataqc/'
+        args.work_dir = CIS_DIR
 
     args.work_dir = op.join(args.work_dir, '{0}-{1}-{2}'.format(args.project,
                                                                 args.sub,
@@ -106,6 +108,15 @@ def main(argv=None):
     shutil.copyfile(config_options['heuristics'],
                     op.join(args.work_dir, 'heuristics.py'))
 
+    # Copy singularity images to scratch
+    scratch_bidsifier = op.join(CIS_DIR, op.basename(bidsifier_file))
+    scratch_mriqc = op.join(CIS_DIR, op.basename(mriqc_file))
+    if not op.isfile(scratch_bidsifier):
+        shutil.copyfile(bidsifier_file, scratch_bidsifier)
+
+    if not op.isfile(scratch_mriqc):
+        shutil.copyfile(mriqc_file, scratch_mriqc)
+
     # Temporary BIDS directory in work_dir
     scratch_bids_dir = op.join(args.work_dir, 'bids')
     scratch_deriv_dir = op.join(scratch_bids_dir, 'derivatives')
@@ -122,13 +133,13 @@ def main(argv=None):
 
     # Run BIDSifier
     cmd = ('{sing} -d {work} --heuristics {heur} --project {proj} --sub {sub} '
-           '--ses {ses}'.format(sing=bidsifier_file, work=args.work_dir,
+           '--ses {ses}'.format(sing=scratch_bidsifier, work=args.work_dir,
                                 heur=op.join(args.work_dir, 'heuristics.py'),
                                 sub=args.sub, ses=args.ses, proj=args.project))
     print(cmd)
 
     # Check if BIDSification ran successfully
-    bids_successful = True
+    bids_successful = False
     with open(op.join(args.work_dir, 'validator.txt'), 'r') as fo:
         validator_result = fo.read()
 
@@ -138,7 +149,8 @@ def main(argv=None):
 
     if bids_successful:
         # Merge BIDS dataset into final folder
-        dset_files = ['CHANGES', 'README', 'dataset_description.json']
+        dset_files = ['CHANGES', 'README', 'dataset_description.json',
+                      'participants.tsv']
         for dset_file in dset_files:
             if not op.isfile(op.join(args.bids_dir, dset_file)):
                 shutil.copyfile(op.join(args.work_dir, 'bids', dset_file),
@@ -169,7 +181,7 @@ def main(argv=None):
         kwargs = kwargs.rstrip()
         cmd = ('{sing} {bids} {out} --no-sub --verbose-reports --ica '
                '--correct-slice-timing -w {work} '
-               '{kwargs}'.format(sing=mriqc_file, bids=scratch_bids_dir,
+               '{kwargs}'.format(sing=scratch_mriqc, bids=scratch_bids_dir,
                                  out=scratch_deriv_dir, work=mriqc_work_dir,
                                  kwargs=kwargs))
         print(cmd)
