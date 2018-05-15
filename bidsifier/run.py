@@ -81,7 +81,9 @@ def main(argv=None):
             f_obj = tar.extractfile(dicoms[0])
             data = pydicom.read_file(f_obj)
 
-        if data.PatientBirthDate:
+        if data.get('PatientAge'):
+            age = int(data.PatientAge.replace('Y', ''))
+        elif data.get('PatientBirthDate'):
             age = parse(data.StudyDate) - parse(data.PatientBirthDate)
             age = np.round(age.days / 365.25, 2)
         else:
