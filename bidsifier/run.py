@@ -43,8 +43,8 @@ def get_parser():
                         help='Name of the project.')
     parser.add_argument('--sub', required=True, dest='sub',
                         help='The label of the subject to analyze.')
-    parser.add_argument('--ses', required=True, dest='ses',
-                        help='Session number')
+    parser.add_argument('--ses', required=False, dest='ses',
+                        help='Session number', default=None)
     return parser
 
 
@@ -52,8 +52,12 @@ def main(argv=None):
     args = get_parser().parse_args(argv)
 
     # Check inputs
-    tar_file = op.join(args.dicom_dir, 'sub-{0}-ses-{1}.tar'.format(args.sub,
-                                                                    args.ses))
+    if args.ses is None:
+        tar_file = op.join(args.dicom_dir, 'sub-{0}.tar'.format(args.sub))
+    else:
+        tar_file = op.join(args.dicom_dir,
+                           'sub-{0}-ses-{1}.tar'.format(args.sub, args.ses))
+
     if not args.dicom_dir.startswith('/scratch'):
         raise ValueError('Dicom files must be in scratch.')
 

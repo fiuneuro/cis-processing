@@ -48,8 +48,8 @@ def get_parser():
                         help='The name of the project to analyze.')
     parser.add_argument('--sub', required=True, dest='sub',
                         help='The label of the subject to analyze.')
-    parser.add_argument('--ses', required=True, dest='ses',
-                        help='Session number')
+    parser.add_argument('--ses', required=False, dest='ses',
+                        help='Session number', default=None)
     return parser
 
 
@@ -62,9 +62,13 @@ def main(argv=None):
     if args.work_dir is None:
         args.work_dir = CIS_DIR
 
-    args.work_dir = op.join(args.work_dir, '{0}-{1}-{2}'.format(args.project,
-                                                                args.sub,
-                                                                args.ses))
+    if args.ses is None:
+        args.work_dir = op.join(args.work_dir,
+                                '{0}-{1}'.format(args.project, args.sub))
+    else:
+        args.work_dir = op.join(args.work_dir,
+                                '{0}-{1}-{2}'.format(args.project, args.sub,
+                                                     args.ses))
 
     if not args.work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
@@ -123,8 +127,12 @@ def main(argv=None):
     mriqc_work_dir = op.join(args.work_dir, 'work')
 
     # Tar dicom folders into single file
-    tarred_file = op.join(args.work_dir,
-                          'sub-{0}-ses-{1}.tar'.format(args.sub, args.ses))
+    if args.ses is None:
+        tarred_file = op.join(args.work_dir, 'sub-{0}.tar'.format(args.sub))
+    else:
+        tarred_file = op.join(args.work_dir,
+                              'sub-{0}-ses-{1}.tar'.format(args.sub, args.ses))
+
     with tarfile.open(tarred_file, 'w') as tar:
         tar.add(args.dicom_dir)
 
@@ -169,6 +177,8 @@ def main(argv=None):
                         sep='\t', index=False)
         else:
             print('Subject/session already found in participants.tsv')
+
+        # TODO: Move imaging files
 
         # Run MRIQC
         kwargs = ''
