@@ -22,9 +22,8 @@ sess=$5
 #############################################
 
 # Put data in BIDS format
-heudiconv -d $scratchdir/sub-{subject}-ses-{session}.tar \
-  -s $sub -ss $sess -f $heuristics -c dcm2niix \
-  -o $scratchdir/bids/ --bids --overwrite
+heudiconv -d $scratchdir/sub-{subject}-ses-{session}.tar -s $sub -ss $sess -f \
+  $heuristics -c dcm2niix -o $scratchdir/bids/ --bids --overwrite
 
 ##############################################
 # Check results, anonymize, and clean metadata
@@ -41,8 +40,7 @@ if [ -d $scratchdir/bids/sub-$sub/ses-$sess ]; then
   rm ./*.log
 
   # Add IntendedFor and TotalReadoutTime fields to jsons
-  python complete_jsons.py -d $scratchdir/bids/ -s $sub \
-    -ss $sess --overwrite
+  python complete_jsons.py -d $scratchdir/bids/ -s $sub -ss $sess --overwrite
 
   # Remove extraneous fields from jsons
   python clean_metadata.py $scratchdir/bids/
