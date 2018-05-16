@@ -178,7 +178,22 @@ def main(argv=None):
         else:
             print('Subject/session already found in participants.tsv')
 
-        # TODO: Move imaging files
+        scratch_sub_dir = op.join(args.work_dir,
+                                  'bids/sub-{0}'.format(args.sub))
+        out_sub_dir = op.join(args.bids_dir, 'sub-{0}')
+        if not op.isdir(out_sub_dir):
+            shutil.copy(scratch_sub_dir, out_sub_dir)
+        elif args.ses is not None:
+            scratch_ses_dir = op.join(scratch_sub_dir,
+                                      'ses-{0}'.format(args.ses))
+            out_ses_dir = op.join(out_sub_dir, 'ses-{0}'.format(args.ses))
+            if not op.isdir(out_ses_dir):
+                shutil.copy(scratch_ses_dir, out_ses_dir)
+            else:
+                print('Warning: Subject/session directory already exists in '
+                      'dataset.')
+        else:
+            print('Warning: Subject directory already exists in dataset.')
 
         # Run MRIQC
         kwargs = ''
