@@ -250,6 +250,8 @@ def main(args=None):
                         default=False, action='store_true',
                         help='overwrite fmap jsons')
     args = parser.parse_args(args)
+    if isinstance(args.session, str) and args.session == 'None':
+        args.session = None
     run(args.bids_dir, args.subs, args.session, args.overwrite)
 
 

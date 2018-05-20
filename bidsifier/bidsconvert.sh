@@ -13,7 +13,8 @@ scratchdir=$1
 heuristics=$2
 project=$3
 sub=$4
-sess=$5
+sess=${5:-None}
+
 ######################################
 ######################################
 
@@ -21,18 +22,26 @@ sess=$5
 # Begin by converting the data to BIDS format
 #############################################
 
-# Put data in BIDS format
-heudiconv -d $scratchdir/sub-{subject}-ses-{session}.tar -s $sub -ss $sess -f \
-  $heuristics -c dcm2niix -o $scratchdir/bids/ --bids --overwrite
+if [ "$sess" = "None" ]; then
+  # Put data in BIDS format
+  heudiconv -d $scratchdir/sub-{subject}.tar -s $sub -f \
+    $heuristics -c dcm2niix -o $scratchdir/bids/ --bids --overwrite
+  minipath=sub-$sub
+else
+  # Put data in BIDS format
+  heudiconv -d $scratchdir/sub-{subject}-ses-{session}.tar -s $sub -ss $sess -f \
+    $heuristics -c dcm2niix -o $scratchdir/bids/ --bids --overwrite
+  minipath=sub-$sub/ses-$sess
+fi
 
 ##############################################
 # Check results, anonymize, and clean metadata
 ##############################################
-if [ -d $scratchdir/bids/sub-$sub/ses-$sess ]; then
-  chmod -R 774 $scratchdir/bids/sub-$sub/ses-$sess
+if [ -d $scratchdir/bids/$minipath ]; then
+  chmod -R 774 $scratchdir/bids/$minipath
 
   # Deface structural scans
-  imglist=$(ls $scratchdir/bids/sub-$sub/ses-$sess/anat/*.nii.gz)
+  imglist=$(ls $scratchdir/bids/$minipath/anat/*.nii.gz)
   for tmpimg in $imglist; do
     mri_deface $tmpimg /src/deface/talairach_mixed_with_skull.gca \
       /src/deface/face.gca $tmpimg
