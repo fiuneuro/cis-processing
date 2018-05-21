@@ -107,12 +107,24 @@ def main(argv=None):
                          'an existing file.')
 
     # Make folders/files
-    os.makedirs(args.work_dir, exist_ok=True)
-    os.makedirs(args.bids_dir, exist_ok=True)
-    os.makedirs(out_deriv_dir, exist_ok=True)
-    os.makedirs(op.join(out_deriv_dir, 'derivatives'), exist_ok=True)
-    os.makedirs(op.join(out_deriv_dir, 'logs'), exist_ok=True)
-    os.makedirs(op.join(out_deriv_dir, 'reports'), exist_ok=True)
+    if not op.isdir(args.work_dir):
+        os.makedirs(args.work_dir)
+
+    if not op.isdir(args.bids_dir):
+        os.makedirs(args.bids_dir)
+
+    if not op.isdir(out_deriv_dir):
+        os.makedirs(out_deriv_dir)
+
+    if not op.isdir(op.join(out_deriv_dir, 'derivatives')):
+        os.makedirs(op.join(out_deriv_dir, 'derivatives'))
+
+    if not op.isdir(op.join(out_deriv_dir, 'logs')):
+        os.makedirs(op.join(out_deriv_dir, 'logs'))
+
+    if not op.isdir(op.join(out_deriv_dir, 'reports')):
+        os.makedirs(op.join(out_deriv_dir, 'reports'))
+
     shutil.copyfile(heuristics_file,
                     op.join(args.work_dir, 'heuristics.py'))
 
