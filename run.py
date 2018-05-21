@@ -92,7 +92,11 @@ def main(argv=None):
                             'derivatives/mriqc-{0}'.format(mriqc_version))
 
     # Additional checks and copying for heuristics file
-    if not op.isfile(config_options['heuristics']):
+    heuristics_file = config_options['heuristics']
+    if not heuristics_file.startswith('/'):
+        heuristics_file = op.join('/home/data/nbc/cis_dataqc/cis-processing', heuristics_file)
+
+    if not op.isfile(heuristics_file):
         raise ValueError('Heuristics file specified in config files must be '
                          'an existing file.')
     if not op.isfile(bidsifier_file):
@@ -109,7 +113,7 @@ def main(argv=None):
     os.makedirs(op.join(out_deriv_dir, 'derivatives'), exist_ok=True)
     os.makedirs(op.join(out_deriv_dir, 'logs'), exist_ok=True)
     os.makedirs(op.join(out_deriv_dir, 'reports'), exist_ok=True)
-    shutil.copyfile(config_options['heuristics'],
+    shutil.copyfile(heuristics_file,
                     op.join(args.work_dir, 'heuristics.py'))
 
     # Copy singularity images to scratch
