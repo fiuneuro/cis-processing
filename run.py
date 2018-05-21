@@ -82,9 +82,9 @@ def main(argv=None):
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
 
-    bidsifier_file = op.join('/home/data/nbc/singularity_images/',
+    bidsifier_file = op.join('/home/data/nbc/singularity-images/',
                              config_options['bidsifier'])
-    mriqc_file = op.join('/home/data/nbc/singularity_images/',
+    mriqc_file = op.join('/home/data/nbc/singularity-images/',
                          config_options['mriqc'])
     mriqc_version = mriqc_file.split('-')[0].split('_')[-1]
 
