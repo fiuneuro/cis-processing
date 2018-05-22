@@ -49,10 +49,10 @@ if [ -d $scratchdir/bids/$minipath ]; then
   rm ./*.log
 
   # Add IntendedFor and TotalReadoutTime fields to jsons
-  python complete_jsons.py -d $scratchdir/bids/ -s $sub -ss $sess --overwrite
+  python /scripts/complete_jsons.py -d $scratchdir/bids/ -s $sub -ss $sess --overwrite
 
   # Remove extraneous fields from jsons
-  python clean_metadata.py $scratchdir/bids/
+  python /scripts/clean_metadata.py $scratchdir/bids/
 
   # Validate dataset and, if it passes, copy files to outdir
   bids-validator $scratchdir/bids/ > $scratchdir/validator.txt

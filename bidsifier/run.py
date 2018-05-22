@@ -69,10 +69,10 @@ def main(argv=None):
         raise ValueError('Argument "heuristics" must be an existing file.')
 
     # Compile and run command
-    cmd = ('./bidsconvert.sh {0} {1} {2} {3} {4}'.format(args.dicom_dir,
-                                                         args.heuristics,
-                                                         args.project,
-                                                         args.sub, args.ses))
+    cmd = ('/scripts/bidsconvert.sh {0} {1} {2} {3} {4}'.format(args.dicom_dir,
+                                                                args.heuristics,
+                                                                args.project,
+                                                                args.sub, args.ses))
     run(cmd)
 
     # Grab some info to add to the participants file
