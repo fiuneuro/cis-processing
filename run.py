@@ -198,7 +198,7 @@ def main(argv=None):
 
         scratch_sub_dir = op.join(args.work_dir,
                                   'bids/sub-{0}'.format(args.sub))
-        out_sub_dir = op.join(args.bids_dir, 'sub-{0}')
+        out_sub_dir = op.join(args.bids_dir, 'sub-{0}'.format(args.sub))
         if not op.isdir(out_sub_dir):
             shutil.copytree(scratch_sub_dir, out_sub_dir)
         elif args.ses is not None:
@@ -222,11 +222,16 @@ def main(argv=None):
                 val = config_options['mriqc_settings'][field]
             kwargs += '--{0} {1} '.format(field, val)
         kwargs = kwargs.rstrip()
-        cmd = ('{sing} {bids} {out} group --no-sub --verbose-reports '
+        cmd = ('{sing} {bids} {out} participant --no-sub --verbose-reports '
                '--ica --correct-slice-timing -w {work} '
                '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
                                   out=scratch_deriv_dir, work=mriqc_work_dir,
                                   kwargs=kwargs))
+        run(cmd)
+
+        cmd = ('{sing} {bids} {out} group '
+               '--no-sub'.format(sing=scratch_mriqc, bids=scratch_bids_dir,
+                                 out=scratch_deriv_dir))
         run(cmd)
 
         # Merge MRIQC results into final derivatives folder
