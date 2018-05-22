@@ -27,7 +27,7 @@ def main(bids_dir):
                  'MRAcquisitionType', 'NumberOfPhaseEncodingSteps',
                  'PixelBandwidth', 'Rows', 'SAR', 'SliceLocation',
                  'SliceThickness', 'SpacingBetweenSlices', 'IntendedFor',
-                 'MultibandAccelerationFactor']
+                 'MultibandAccelerationFactor', 'SeriesNumber']
 
     for scan in scans:
         json_file = scan.filename.replace('.nii.gz', '.json')

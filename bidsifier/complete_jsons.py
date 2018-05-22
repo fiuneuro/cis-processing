@@ -27,7 +27,7 @@ def files_to_dict(file_list):
         fname = file_.filename
         with open(fname, 'r') as f_obj:
             data = json.load(f_obj)
-        acq_time = parse(data['global']['const']['SeriesTime'])
+        acq_time = int(data['SeriesNumber'])
         out_dict[acq_time] = file_
     return out_dict
 
