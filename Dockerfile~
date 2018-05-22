@@ -160,4 +160,4 @@ WORKDIR /home/neuro
 # Set entrypoint script
 #----------------------
 COPY bidsifier/ /scripts/
-ENTRYPOINT ["/neurodocker/startup.sh", "/scripts/run.py"]
+ENTRYPOINT ["/neurodocker/startup.sh", "source activate neuro", "/scripts/run.py"]
