@@ -203,7 +203,7 @@ def main(argv=None):
                                       'ses-{0}'.format(args.ses))
             out_ses_dir = op.join(out_sub_dir, 'ses-{0}'.format(args.ses))
             if not op.isdir(out_ses_dir):
-                shutil.copytree(scratch_ses_dir, out_ses_dir)
+                shutil.copy(scratch_ses_dir, out_ses_dir)
             else:
                 print('Warning: Subject/session directory already exists in '
                       'dataset.')
