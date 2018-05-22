@@ -181,8 +181,11 @@ def main(argv=None):
 
         p_df = pd.read_csv(op.join(args.work_dir, 'bids/participants.tsv'),
                            sep='\t')
+        p_df = p_df.T.drop_duplicates().T
         p_df2 = pd.read_csv(op.join(args.bids_dir, 'participants.tsv'),
                             sep='\t')
+        p_df2 = p_df2.T.drop_duplicates().T
+
         # Check if row already in participants file
         matches = p_df[(p_df == p_df2.loc[0]).all(axis=1)]
         match = matches.index.values.size
