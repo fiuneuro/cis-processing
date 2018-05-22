@@ -98,7 +98,6 @@ RUN conda create -y -q --name neuro python=3 \
                                     traits=4.6.0 \
     && sync && conda clean -tipsy && sync \
     && /bin/bash -c "source activate neuro \
-      && pip install -q --no-cache-dir https://github.com/moloney/dcmstack/tarball/master \
       && pip install numpy pandas pybids nibabel heudiconv pydicom python-dateutil" \
     && sync \
     && sed -i '$isource activate neuro' $ND_ENTRYPOINT
