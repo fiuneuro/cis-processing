@@ -35,9 +35,9 @@ def main(bids_dir):
         metadata2 = {key: metadata[key] for key in KEEP_KEYS if key in
                      metadata.keys()}
         for key in KEEP_KEYS:
-            if key not in metadata.keys() and \
-               key in metadata['global']['const'].keys():
-                metadata2[key] = metadata['global']['const'][key]
+            if key not in metadata.keys() and 'global' in metadata.keys():
+                if key in metadata['global']['const'].keys():
+                    metadata2[key] = metadata['global']['const'][key]
 
         with open(json_file, 'w') as fo:
             json.dump(metadata2, fo, sort_keys=True, indent=4)

@@ -222,11 +222,11 @@ def main(argv=None):
                 val = config_options['mriqc_settings'][field]
             kwargs += '--{0} {1} '.format(field, val)
         kwargs = kwargs.rstrip()
-        cmd = ('{sing} {bids} {out} --no-sub --verbose-reports --ica '
-               '--correct-slice-timing -w {work} '
-               '{kwargs}'.format(sing=scratch_mriqc, bids=scratch_bids_dir,
-                                 out=scratch_deriv_dir, work=mriqc_work_dir,
-                                 kwargs=kwargs))
+        cmd = ('{sing} {bids} {out} group --no-sub --verbose-reports '
+               '--ica --correct-slice-timing -w {work} '
+               '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
+                                  out=scratch_deriv_dir, work=mriqc_work_dir,
+                                  kwargs=kwargs))
         run(cmd)
 
         # Merge MRIQC results into final derivatives folder
