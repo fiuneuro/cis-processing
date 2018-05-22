@@ -7,10 +7,10 @@ import os.path as op
 import json
 import shutil
 import tarfile
+import argparse
 import subprocess
 from glob import glob
 
-import argparse
 import pandas as pd
 
 
