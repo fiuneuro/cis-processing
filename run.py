@@ -191,7 +191,7 @@ def main(argv=None):
         match = matches.index.values.size
         if not match:
             p_df = pd.concat((p_df, p_df2))
-            p_df.to_csv(op.join(args.work_dir, 'bids/participants.tsv'),
+            p_df.to_csv(op.join(args.bids_dir, 'participants.tsv'),
                         sep='\t', index=False)
         else:
             print('Subject/session already found in participants.tsv')
