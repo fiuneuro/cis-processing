@@ -230,22 +230,22 @@ def main(argv=None):
         run(cmd)
 
         # Merge MRIQC results into final derivatives folder
-        reports = glob(op.join(scratch_deriv_dir, 'mriqc/reports/*.html'))
+        reports = glob(op.join(scratch_deriv_dir, 'reports/*.html'))
         reports = [f for f in reports if '_group' not in op.basename(f)]
         for report in reports:
             shutil.copy(report, op.join(out_deriv_dir, 'reports',
                                         op.basename(report)))
 
-        logs = glob(op.join(scratch_deriv_dir, 'mriqc/logs/*'))
+        logs = glob(op.join(scratch_deriv_dir, 'logs/*'))
         for log in logs:
             shutil.copy(log, op.join(out_deriv_dir, 'logs', op.basename(log)))
 
-        derivatives = glob(op.join(scratch_deriv_dir, 'mriqc/derivatives/*'))
+        derivatives = glob(op.join(scratch_deriv_dir, 'derivatives/*'))
         for derivative in derivatives:
             shutil.copy(derivative, op.join(out_deriv_dir, 'derivatives',
                                             op.basename(derivative)))
 
-        csv_files = glob(op.join(scratch_deriv_dir, 'mriqc/*.csv'))
+        csv_files = glob(op.join(scratch_deriv_dir, '*.csv'))
         for csv_file in csv_files:
             out_file = op.join(out_deriv_dir, op.basename(csv_file))
             if not op.isfile(out_file):
