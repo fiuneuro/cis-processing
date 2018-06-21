@@ -133,11 +133,11 @@ def main(argv=None):
     scratch_mriqc = op.join(CIS_DIR, op.basename(mriqc_file))
     if not op.isfile(scratch_bidsifier):
         shutil.copyfile(bidsifier_file, scratch_bidsifier)
-        os.chmod(scratch_bidsifier, 0775)
+        os.chmod(scratch_bidsifier, 0o775)
 
     if not op.isfile(scratch_mriqc):
         shutil.copyfile(mriqc_file, scratch_mriqc)
-        os.chmod(scratch_mriqc, 0775)
+        os.chmod(scratch_mriqc, 0o775)
 
     # Temporary BIDS directory in work_dir
     scratch_bids_dir = op.join(args.work_dir, 'bids')
