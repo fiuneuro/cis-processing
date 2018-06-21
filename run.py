@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-From https://github.com/BIDS-Apps/example/blob/aa0d4808974d79c9fbe54d56d3b47bb2cf4e0a0d/run.py
+Based on
+https://github.com/BIDS-Apps/example/blob/aa0d4808974d79c9fbe54d56d3b47bb2cf4e0a0d/run.py
 """
 import os
 import os.path as op
@@ -63,14 +64,14 @@ def main(argv=None):
         args.work_dir = CIS_DIR
 
     if args.ses is None:
-        args.work_dir = op.join(args.work_dir,
+        scan_work_dir = op.join(args.work_dir,
                                 '{0}-{1}'.format(args.project, args.sub))
     else:
-        args.work_dir = op.join(args.work_dir,
+        scan_work_dir = op.join(args.work_dir,
                                 '{0}-{1}-{2}'.format(args.project, args.sub,
                                                      args.ses))
 
-    if not args.work_dir.startswith('/scratch'):
+    if not scan_work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
 
     if not op.isdir(args.dicom_dir):
@@ -94,7 +95,8 @@ def main(argv=None):
     # Additional checks and copying for heuristics file
     heuristics_file = config_options['heuristics']
     if not heuristics_file.startswith('/'):
-        heuristics_file = op.join('/home/data/nbc/cis_dataqc/cis-processing', heuristics_file)
+        heuristics_file = op.join('/home/data/nbc/cis_dataqc/cis-processing',
+                                  heuristics_file)
 
     if not op.isfile(heuristics_file):
         raise ValueError('Heuristics file specified in config files must be '
@@ -107,8 +109,8 @@ def main(argv=None):
                          'an existing file.')
 
     # Make folders/files
-    if not op.isdir(args.work_dir):
-        os.makedirs(args.work_dir)
+    if not op.isdir(scan_work_dir):
+        os.makedirs(scan_work_dir)
 
     if not op.isdir(args.bids_dir):
         os.makedirs(args.bids_dir)
@@ -126,7 +128,7 @@ def main(argv=None):
         os.makedirs(op.join(out_deriv_dir, 'reports'))
 
     shutil.copyfile(heuristics_file,
-                    op.join(args.work_dir, 'heuristics.py'))
+                    op.join(scan_work_dir, 'heuristics.py'))
 
     # Copy singularity images to scratch
     scratch_bidsifier = op.join(CIS_DIR, op.basename(bidsifier_file))
@@ -140,15 +142,15 @@ def main(argv=None):
         os.chmod(scratch_mriqc, 0o775)
 
     # Temporary BIDS directory in work_dir
-    scratch_bids_dir = op.join(args.work_dir, 'bids')
+    scratch_bids_dir = op.join(scan_work_dir, 'bids')
     scratch_deriv_dir = op.join(scratch_bids_dir, 'derivatives')
-    mriqc_work_dir = op.join(args.work_dir, 'work')
+    mriqc_work_dir = op.join(scan_work_dir, 'work')
 
     # Tar dicom folders into single file
     if args.ses is None:
-        tarred_file = op.join(args.work_dir, 'sub-{0}.tar'.format(args.sub))
+        tarred_file = op.join(scan_work_dir, 'sub-{0}.tar'.format(args.sub))
     else:
-        tarred_file = op.join(args.work_dir,
+        tarred_file = op.join(scan_work_dir,
                               'sub-{0}-ses-{1}.tar'.format(args.sub, args.ses))
 
     with tarfile.open(tarred_file, 'w') as tar:
@@ -156,19 +158,19 @@ def main(argv=None):
 
     # Run BIDSifier
     cmd = ('{sing} -d {work} --heuristics {heur} --project {proj} --sub {sub} '
-           '--ses {ses}'.format(sing=scratch_bidsifier, work=args.work_dir,
-                                heur=op.join(args.work_dir, 'heuristics.py'),
+           '--ses {ses}'.format(sing=scratch_bidsifier, work=scan_work_dir,
+                                heur=op.join(scan_work_dir, 'heuristics.py'),
                                 sub=args.sub, ses=args.ses, proj=args.project))
     run(cmd)
 
     # Check if BIDSification ran successfully
     bids_successful = False
-    with open(op.join(args.work_dir, 'validator.txt'), 'r') as fo:
+    with open(op.join(scan_work_dir, 'validator.txt'), 'r') as fo:
         validator_result = fo.read()
 
     if "This dataset appears to be BIDS compatible" in validator_result:
         bids_successful = True
-    os.remove(op.join(args.work_dir, 'validator.txt'))
+    os.remove(op.join(scan_work_dir, 'validator.txt'))
 
     if bids_successful:
         # Merge BIDS dataset into final folder
@@ -176,10 +178,10 @@ def main(argv=None):
                       'participants.tsv']
         for dset_file in dset_files:
             if not op.isfile(op.join(args.bids_dir, dset_file)):
-                shutil.copyfile(op.join(args.work_dir, 'bids', dset_file),
+                shutil.copyfile(op.join(scan_work_dir, 'bids', dset_file),
                                 op.join(args.bids_dir, dset_file))
 
-        p_df = pd.read_csv(op.join(args.work_dir, 'bids/participants.tsv'),
+        p_df = pd.read_csv(op.join(scan_work_dir, 'bids/participants.tsv'),
                            sep='\t')
         p_df = p_df.T.drop_duplicates().T
         p_df2 = pd.read_csv(op.join(args.bids_dir, 'participants.tsv'),
@@ -196,7 +198,7 @@ def main(argv=None):
         else:
             print('Subject/session already found in participants.tsv')
 
-        scratch_sub_dir = op.join(args.work_dir,
+        scratch_sub_dir = op.join(scan_work_dir,
                                   'bids/sub-{0}'.format(args.sub))
         out_sub_dir = op.join(args.bids_dir, 'sub-{0}'.format(args.sub))
         if not op.isdir(out_sub_dir):
@@ -255,6 +257,9 @@ def main(argv=None):
                 old_df = pd.read_csv(out_file)
                 out_df = pd.concat((old_df, new_df))
                 out_df.to_csv(out_file, index=False)
+
+        # Finally, clean up working directory *if successful*
+        shutil.rmtree(scan_work_dir)
     else:
         print('Heudiconv-generated dataset failed BIDS validator. '
               'Not running MRIQC')
