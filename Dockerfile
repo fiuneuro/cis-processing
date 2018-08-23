@@ -156,6 +156,11 @@ USER neuro
 
 WORKDIR /home/neuro
 
+#--------------------------------------------
+# Set environmental variables for Singularity
+#--------------------------------------------
+ENV SINGULARITY_CACHEDIR /scratch
+
 #----------------------
 # Set entrypoint script
 #----------------------
