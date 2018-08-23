@@ -161,8 +161,7 @@ def main(argv=None):
            '--ses {ses}'.format(sing=scratch_bidsifier, work=scan_work_dir,
                                 heur=op.join(scan_work_dir, 'heuristics.py'),
                                 sub=args.sub, ses=args.ses, proj=args.project))
-    run(cmd, env={'SINGULARITY_CACHEDIR': scan_work_dir,
-                  'SINGULARITY_TMPDIR': scan_work_dir})
+    run(cmd)
 
     # Check if BIDSification ran successfully
     bids_successful = False
@@ -230,8 +229,7 @@ def main(argv=None):
                '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
                                   out=scratch_deriv_dir, work=mriqc_work_dir,
                                   kwargs=kwargs))
-        run(cmd, env={'SINGULARITY_CACHEDIR': mriqc_work_dir,
-                      'SINGULARITY_TMPDIR': mriqc_work_dir})
+        run(cmd)
 
         # Merge MRIQC results into final derivatives folder
         reports = glob(op.join(scratch_deriv_dir, 'reports/*.html'))
