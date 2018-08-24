@@ -28,7 +28,9 @@ def run(command, env={}):
             break
 
     if process.returncode != 0:
-        raise Exception("Non zero return code: %d" % process.returncode)
+        raise Exception("Non zero return code: {0}\n"
+                        "{1}\n\n{2}".format(process.returncode, command,
+                                            process.stdout.read()))
 
 
 def get_parser():
@@ -73,7 +75,7 @@ def main(argv=None):
                                                                 args.heuristics,
                                                                 args.project,
                                                                 args.sub, args.ses))
-    run(cmd)
+    run(cmd, env={'TMPDIR': args.dicom_dir})
 
     # Grab some info to add to the participants file
     participants_file = op.join(args.dicom_dir, 'bids/participants.tsv')

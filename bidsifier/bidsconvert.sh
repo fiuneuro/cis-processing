@@ -21,7 +21,6 @@ sess=${5:-None}
 #############################################
 # Begin by converting the data to BIDS format
 #############################################
-
 if [ "$sess" = "None" ]; then
   # Put data in BIDS format
   heudiconv -d $scratchdir/sub-{subject}.tar -s $sub -f \

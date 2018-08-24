@@ -160,6 +160,7 @@ WORKDIR /home/neuro
 # Set environmental variables for Singularity
 #--------------------------------------------
 ENV SINGULARITY_CACHEDIR /scratch
+ENV SINGULARITY_TMPDIR /scratch
 
 #----------------------
 # Set entrypoint script
