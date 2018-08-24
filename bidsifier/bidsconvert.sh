@@ -55,7 +55,7 @@ if [ -d $scratchdir/bids/$minipath ]; then
   python /scripts/clean_metadata.py $scratchdir/bids/
 
   # Validate dataset and, if it passes, copy files to outdir
-  bids-validator $scratchdir/bids/ > $scratchdir/validator.txt
+  bids-validator $scratchdir/bids/ --ignoreWarnings > $scratchdir/validator.txt
 else
   echo "FAILED" > $scratchdir/validator.txt
   echo "Heudiconv failed to convert this dataset to BIDS format."
