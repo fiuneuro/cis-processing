@@ -30,7 +30,7 @@ def run(command, env={}):
 
     if process.returncode != 0:
         raise Exception("Non zero return code: {0}\n"
-                        "{1}\n\n{2}".format(process.returncode, process.cmd,
+                        "{1}\n\n{2}".format(process.returncode, command,
                                             process.output))
 
 
