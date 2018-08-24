@@ -113,7 +113,7 @@ def complete_fmap_jsons(bids_dir, subs, ses, overwrite):
             img = nib.load(nifti_fname)
 
             # get_nearest doesn't work with field maps atm
-            data = layout.get_metadata(fn)
+            data = layout.get_metadata(nifti_fname)
             json_fname = nifti_fname.replace('.nii.gz', '.json')
 
             if overwrite or 'TotalReadoutTime' not in data.keys():
