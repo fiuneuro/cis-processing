@@ -53,6 +53,9 @@ def get_parser():
                         help='The label of the subject to analyze.')
     parser.add_argument('--ses', required=False, dest='ses',
                         help='Session number', default=None)
+    parser.add_argument('--n_procs', required=False, dest='n_procs',
+                        help='Number of processes with which to run MRIQC.',
+                        default=1, type=int)
     return parser
 
 
@@ -81,6 +84,10 @@ def main(argv=None):
 
     if not op.isfile(args.config):
         raise ValueError('Argument "config" must be an existing file.')
+
+    if args.n_procs < 1:
+        raise ValueError('Argument "n_procs" must be positive integer greater '
+                         'than zero.')
 
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
@@ -227,10 +234,10 @@ def main(argv=None):
             kwargs += '--{0} {1} '.format(field, val)
         kwargs = kwargs.rstrip()
         cmd = ('{sing} {bids} {out} participant --no-sub --verbose-reports '
-               '--ica --correct-slice-timing -w {work} '
+               '--ica --correct-slice-timing -w {work} --n_procs {n_procs}'
                '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
                                   out=scratch_deriv_dir, work=mriqc_work_dir,
-                                  kwargs=kwargs))
+                                  n_procs=n_procs, kwargs=kwargs))
         run(cmd)
 
         # Merge MRIQC results into final derivatives folder
