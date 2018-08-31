@@ -26,3 +26,20 @@ their own. Here is a list, in no particular order:
     there is currently no budget for centralized CIS processing.
   - Datasets should be anonymized (including removal of PHI from metadata and
     defacing of anatomical scans) to make it easier to share data later on.
+
+## Usage
+If you would like to use the cis-processing pipeline, you'll first need to do a couple of things:
+1. Create a [heudiconv](https://github.com/nipy/heudiconv) heuristics file for your project.
+    - This file specifies how the dicom converter will select, convert, and rename scans to match BIDS format. In order to avoid converting incomplete or incorrect scans, the heuristics file allows you to check things like the number of slices, the number of volumes, and the name for each scan.
+    - Heuristics files for several projects are included in this repository, in the [heuristics](https://github.com/FIU-Neuro/cis-processing/tree/master/heuristics) folder. You do not need to upload your heuristics file to the repository, although if you don't then that will need to be reflected in the project's config file.
+2. Create a config file for your project.
+    - This file specifies a number of important things, including:
+        - The location and name of your heuristics file. **If you don't want to upload your heuristics file to this repository, make sure to include the full path to the heuristics file in the config file.**
+        - The BIDSification and MRIQC Singularity images you want to use for your project.
+        - Any project-specific parameters you might want to specify for MRIQC (esp. the FD threshold you use to identify motion outliers).
+    - The config file **does not** need to be uploaded to this repository. The file is specified in the call to `run.py`.
+3. Optional: Upload your config and heuristics files to this repository.
+    - You can open a pull request with the uploaded files from your fork to this repository, and one of the maintainers of the repository will review and merge your changes.
+4. Create a job file for the HPC.
+    - You can use the provided [template job](https://github.com/FIU-Neuro/cis-processing/blob/master/example_lsf_job.sub) as a basis for your own.
+5. Submit your job.
