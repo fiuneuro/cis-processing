@@ -43,3 +43,6 @@ If you would like to use the cis-processing pipeline, you'll first need to do a 
 4. Create a job file for the HPC.
     - You can use the provided [template job](https://github.com/FIU-Neuro/cis-processing/blob/master/example_lsf_job.sub) as a basis for your own.
 5. Submit your job.
+
+## Support
+If you identify a bug, need help getting started, or would like to request new features, please first check that a similar issue does not already exist. If one doesn't, please feel free to [open an issue](https://github.com/FIU-Neuro/cis-processing/issues) in this repository detailing your error/question/request and the project maintainers will attempt to help.
