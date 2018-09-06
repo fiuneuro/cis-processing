@@ -88,6 +88,8 @@ def main(argv=None):
     if args.n_procs < 1:
         raise ValueError('Argument "n_procs" must be positive integer greater '
                          'than zero.')
+    else:
+        n_procs = int(args.n_procs)
 
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
