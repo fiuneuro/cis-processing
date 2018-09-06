@@ -236,7 +236,7 @@ def main(argv=None):
             kwargs += '--{0} {1} '.format(field, val)
         kwargs = kwargs.rstrip()
         cmd = ('{sing} {bids} {out} participant --no-sub --verbose-reports '
-               '--ica --correct-slice-timing -w {work} --n_procs {n_procs}'
+               '--ica --correct-slice-timing -w {work} --n_procs {n_procs} '
                '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
                                   out=scratch_deriv_dir, work=mriqc_work_dir,
                                   n_procs=n_procs, kwargs=kwargs))
