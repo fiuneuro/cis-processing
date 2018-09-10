@@ -94,9 +94,9 @@ def main(argv=None):
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
 
-    bidsifier_file = op.join('/home/data/nbc/singularity-images/',
+    bidsifier_file = op.join('/home/data/cis/singularity-images/',
                              config_options['bidsifier'])
-    mriqc_file = op.join('/home/data/nbc/singularity-images/',
+    mriqc_file = op.join('/home/data/cis/singularity-images/',
                          config_options['mriqc'])
     mriqc_version = op.basename(mriqc_file).split('-')[0].split('_')[-1]
 
@@ -106,7 +106,7 @@ def main(argv=None):
     # Additional checks and copying for heuristics file
     heuristics_file = config_options['heuristics']
     if not heuristics_file.startswith('/'):
-        heuristics_file = op.join('/home/data/nbc/cis_dataqc/cis-processing',
+        heuristics_file = op.join('/home/data/cis/cis-processing',
                                   heuristics_file)
 
     if not op.isfile(heuristics_file):
