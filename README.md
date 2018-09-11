@@ -42,6 +42,7 @@ If you would like to use the cis-processing pipeline, you'll first need to do a 
     - You can open a pull request with the uploaded files from your fork to this repository, and one of the maintainers of the repository will review and merge your changes.
 4. Create a job file for the HPC.
     - You can use the provided [template job](https://github.com/FIU-Neuro/cis-processing/blob/master/example_lsf_job.sub) as a basis for your own.
+    - Remember that the DICOM directory input (`-d` or `--dicomdir`) should point to the directory containing the scan-specific folders to be converted. This generally is a folder called `scans/` and is subject- and session-specific.
 5. Submit your job.
 
 ## Support
