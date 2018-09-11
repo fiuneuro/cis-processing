@@ -36,8 +36,8 @@ def run(command, env={}):
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Run MRIQC on BIDS dataset.')
-    parser.add_argument('-d', '--dicomdir', required=True, dest='dicom_dir',
-                        help='Directory containing raw data.')
+    parser.add_argument('-t', '--tarfile', required=True, dest='tar_file',
+                        help='Tarred file containing raw (dicom) data.')
     parser.add_argument('-b', '--bidsdir', required=True, dest='bids_dir',
                         help=('Output directory for BIDS dataset and '
                               'derivatives.'))
@@ -79,8 +79,9 @@ def main(argv=None):
     if not scan_work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
 
-    if not op.isdir(args.dicom_dir):
-        raise ValueError('Argument "dicom_dir" must be an existing directory.')
+    if not op.isfile(args.tar_file) or not args.tar_file.endswith('.tar'):
+        raise ValueError('Argument "tar_file" must be an existing file with '
+                         'the suffix ".tar".')
 
     if not op.isfile(args.config):
         raise ValueError('Argument "config" must be an existing file.')
@@ -157,15 +158,14 @@ def main(argv=None):
     scratch_deriv_dir = op.join(scratch_bids_dir, 'derivatives')
     mriqc_work_dir = op.join(scan_work_dir, 'work')
 
-    # Tar dicom folders into single file
+    # Copy tar file to work_dir
     if args.ses is None:
-        tarred_file = op.join(scan_work_dir, 'sub-{0}.tar'.format(args.sub))
+        work_tar_file = op.join(scan_work_dir, 'sub-{0}.tar'.format(args.sub))
     else:
-        tarred_file = op.join(scan_work_dir,
-                              'sub-{0}-ses-{1}.tar'.format(args.sub, args.ses))
-
-    with tarfile.open(tarred_file, 'w') as tar:
-        tar.add(args.dicom_dir)
+        work_tar_file = op.join(scan_work_dir,
+                                'sub-{0}-ses-{1}.tar'.format(args.sub,
+                                                             args.ses))
+    shutil.copyfile(args.tar_file, work_tar_file)
 
     # Run BIDSifier
     cmd = ('{sing} -d {work} --heuristics {heur} --project {proj} --sub {sub} '
