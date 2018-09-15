@@ -106,7 +106,7 @@ RUN conda create -y -q --name neuro python=3 \
 #---------------
 # BIDS-validator
 #---------------
-RUN npm install -g bids-validator
+RUN npm install -g bids-validator@0.27.5
 
 #--------------------------------------------------
 # Add NeuroDebian repository
@@ -165,5 +165,5 @@ ENV SINGULARITY_TMPDIR /scratch
 #----------------------
 # Set entrypoint script
 #----------------------
-COPY bidsifier/ /scripts/
-ENTRYPOINT ["/neurodocker/startup.sh", "/scripts/run.py"]
+COPY ./ /scripts/
+ENTRYPOINT ["/neurodocker/startup.sh", "/scripts/bidsify.py"]
