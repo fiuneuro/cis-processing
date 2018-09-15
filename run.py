@@ -126,18 +126,6 @@ def main(argv=None):
     if not op.isdir(args.bids_dir):
         os.makedirs(args.bids_dir)
 
-    if not op.isdir(out_deriv_dir):
-        os.makedirs(out_deriv_dir)
-
-    if not op.isdir(op.join(out_deriv_dir, 'derivatives')):
-        os.makedirs(op.join(out_deriv_dir, 'derivatives'))
-
-    if not op.isdir(op.join(out_deriv_dir, 'logs')):
-        os.makedirs(op.join(out_deriv_dir, 'logs'))
-
-    if not op.isdir(op.join(out_deriv_dir, 'reports')):
-        os.makedirs(op.join(out_deriv_dir, 'reports'))
-
     shutil.copyfile(heuristics_file,
                     op.join(scan_work_dir, 'heuristics.py'))
 
@@ -227,6 +215,18 @@ def main(argv=None):
             print('Warning: Subject directory already exists in dataset.')
 
         # Run MRIQC
+        if not op.isdir(out_deriv_dir):
+            os.makedirs(out_deriv_dir)
+
+        if not op.isdir(op.join(out_deriv_dir, 'derivatives')):
+            os.makedirs(op.join(out_deriv_dir, 'derivatives'))
+
+        if not op.isdir(op.join(out_deriv_dir, 'logs')):
+            os.makedirs(op.join(out_deriv_dir, 'logs'))
+
+        if not op.isdir(op.join(out_deriv_dir, 'reports')):
+            os.makedirs(op.join(out_deriv_dir, 'reports'))
+
         kwargs = ''
         for field in config_options['mriqc_settings'].keys():
             if isinstance(config_options['mriqc_settings'][field], list):
