@@ -14,20 +14,34 @@ def main(bids_dir):
     layout = BIDSLayout(bids_dir)
     scans = layout.get(extensions='nii.gz')
 
-    KEEP_KEYS = ['ConversionSoftware', 'ConversionSoftwareVersion',
-                 'EchoTime', 'EffectiveEchoSpacing', 'FlipAngle',
-                 'MagneticFieldStrength', 'Manufacturer',
-                 'ManufacturersModelName', 'PhaseEncodingDirection',
-                 'ProtocolName', 'RepetitionTime', 'ScanningSequence',
-                 'SequenceName', 'SequenceVariant', 'SeriesDescription',
-                 'SliceTiming', 'TaskName', 'FlipAngle', 'TotalReadoutTime',
-                 'EchoNumbers', 'EchoTrainLength', 'HighBit',
-                 'NumberOfAverages', 'Modality', 'ImagedNucleus',
-                 'ImagingFrequency', 'InPlanePhaseEncodingDirection',
-                 'MRAcquisitionType', 'NumberOfPhaseEncodingSteps',
-                 'PixelBandwidth', 'Rows', 'SAR', 'SliceLocation',
-                 'SliceThickness', 'SpacingBetweenSlices', 'IntendedFor',
-                 'MultibandAccelerationFactor', 'SeriesNumber']
+    KEEP_KEYS = [
+        'AnatomicalLandmarkCoordinates', 'AcquisitionDuration', 'CogAtlasID',
+        'CogPOID', 'CoilCombinationMethod', 'ConversionSoftware',
+        'ConversionSoftwareVersion', 'DelayAfterTrigger', 'DelayTime',
+        'DeviceSerialNumber', 'DwellTime', 'EchoNumbers', 'EchoTime',
+        'EchoTrainLength', 'EffectiveEchoSpacing', 'FlipAngle',
+        'GradientSetType', 'HighBit',
+        'ImagedNucleus', 'ImageType', 'ImagingFrequency',
+        'InPlanePhaseEncodingDirection', 'InstitutionName',
+        'InstitutionAddress', 'InstitutionalDepartmentName',
+        'Instructions', 'IntendedFor', 'InversionTime',
+        'MRAcquisitionType', 'MagneticFieldStrength', 'Manufacturer',
+        'ManufacturersModelName', 'MatrixCoilMode', 'Modality',
+        'MRTransmitCoilSequence', 'MultibandAccelerationFactor',
+        'NumberOfAverages', 'NumberOfPhaseEncodingSteps',
+        'NumberOfVolumesDiscardedByScanner', 'NumberOfVolumesDiscardedByUser',
+        'NumberShots', 'ParallelAcquisitionTechnique',
+        'ParallelReductionFactorInPlane', 'PartialFourier',
+        'PartialFourierDirection', 'PhaseEncodingDirection',
+        'PixelBandwidth', 'ProtocolName', 'PulseSequenceDetails',
+        'PulseSequenceType', 'ReceiveCoilActiveElements', 'ReceiveCoilName',
+        'RepetitionTime', 'Rows',
+        'SAR', 'ScanningSequence', 'ScanOptions', 'SequenceName',
+        'SequenceVariant', 'SeriesDescription', 'SeriesNumber',
+        'SliceEncodingDirection', 'SliceLocation',
+        'SliceThickness', 'SliceTiming', 'SoftwareVersions',
+        'SpacingBetweenSlices', 'StationName', 'TaskDescription',
+        'TaskName', 'TotalReadoutTime', 'Units', 'VolumeTiming']
 
     for scan in scans:
         json_file = scan.filename.replace('.nii.gz', '.json')
