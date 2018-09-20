@@ -28,5 +28,5 @@ module load singularity
 ##########################################################
 
 python cis_proc.py -d [/path/to/tarfile] -w [/scratch/path/to/working/directory/] \
-  -b [/path/to/bids/dataset/] --config [/path/to/config/file] --project [PROJECT] \
-  --sub [SUBJECTID] --ses [SESSION] --n_procs $NPROCS
+  -b [/path/to/bids/dataset/] --config [/path/to/config/file] --sub [SUBJECTID] \
+  --ses [SESSION] --n_procs $NPROCS
