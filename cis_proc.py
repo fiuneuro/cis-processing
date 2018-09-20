@@ -81,9 +81,11 @@ def main(argv=None):
 
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
+
     if 'project' not in config_options.keys():
         raise Exception('Config File must be updated with project field'
                         'See Sample Config File for More information')
+
     if args.ses is None:
         scan_work_dir = op.join(args.work_dir,
                                 '{0}-{1}'.format(config_options['project'], args.sub))
@@ -94,7 +96,7 @@ def main(argv=None):
 
     if not scan_work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
-        
+
     bidsifier_file = op.join('/home/data/cis/singularity-images/',
                              config_options['bidsifier'])
     mriqc_file = op.join('/home/data/cis/singularity-images/',
