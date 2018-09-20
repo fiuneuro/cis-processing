@@ -47,8 +47,6 @@ def get_parser():
                              'subfolder in dset_dir.')
     parser.add_argument('--config', required=True, dest='config',
                         help='Path to the config json file.')
-    parser.add_argument('--project', required=True, dest='project',
-                        help='The name of the project to analyze.')
     parser.add_argument('--sub', required=True, dest='sub',
                         help='The label of the subject to analyze.')
     parser.add_argument('--ses', required=False, dest='ses',
@@ -68,17 +66,6 @@ def main(argv=None):
     if args.work_dir is None:
         args.work_dir = CIS_DIR
 
-    if args.ses is None:
-        scan_work_dir = op.join(args.work_dir,
-                                '{0}-{1}'.format(args.project, args.sub))
-    else:
-        scan_work_dir = op.join(args.work_dir,
-                                '{0}-{1}-{2}'.format(args.project, args.sub,
-                                                     args.ses))
-
-    if not scan_work_dir.startswith('/scratch'):
-        raise ValueError('Working directory must be in scratch.')
-
     if not op.isfile(args.tar_file) or not args.tar_file.endswith('.tar'):
         raise ValueError('Argument "tar_file" must be an existing file with '
                          'the suffix ".tar".')
@@ -94,7 +81,20 @@ def main(argv=None):
 
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
+    if 'project' not in config_options.keys():
+        raise Exception('Config File must be updated with project field'
+                        'See Sample Config File for More information')
+    if args.ses is None:
+        scan_work_dir = op.join(args.work_dir,
+                                '{0}-{1}'.format(config_options['project'], args.sub))
+    else:
+        scan_work_dir = op.join(args.work_dir,
+                                '{0}-{1}-{2}'.format(config_options['project'], args.sub,
+                                                     args.ses))
 
+    if not scan_work_dir.startswith('/scratch'):
+        raise ValueError('Working directory must be in scratch.')
+        
     bidsifier_file = op.join('/home/data/cis/singularity-images/',
                              config_options['bidsifier'])
     mriqc_file = op.join('/home/data/cis/singularity-images/',
@@ -159,7 +159,7 @@ def main(argv=None):
     cmd = ('{sing} -d {work} --heuristics {heur} --project {proj} --sub {sub} '
            '--ses {ses}'.format(sing=scratch_bidsifier, work=scan_work_dir,
                                 heur=op.join(scan_work_dir, 'heuristics.py'),
-                                sub=args.sub, ses=args.ses, proj=args.project))
+                                sub=args.sub, ses=args.ses, proj=config_options['project']))
     run(cmd)
 
     # Check if BIDSification ran successfully
