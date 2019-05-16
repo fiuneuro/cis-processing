@@ -23,8 +23,7 @@ def run(command, env={}):
                                env=merged_env)
     while True:
         line = process.stdout.readline()
-        #line = str(line).encode('utf-8')[:-1]
-        line=str(line, 'utf-8')[:-1]
+        line = str(line).encode('utf-8')[:-1]
         print(line)
         if line == '' and process.poll() is not None:
             break
