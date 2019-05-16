@@ -118,11 +118,15 @@ def main(argv=None):
     if not op.isdir(raw_dir):
         os.makedirs(raw_dir)
 
-    tar_list = os.listdir(raw_dir)
-    with open(op.join(proj_work_dir, '{0}-processed.txt'.format(config_options['project'])), 'a') as fo:
-        for tmp_tar_list in tar_list:
-            fo.write(tmp_tar_list + "\n")
-            
+    #tar_list = os.listdir(raw_dir)
+    #with open(op.join(proj_work_dir, '{0}-processed.txt'.format(config_options['project'])), 'a') as fo:
+    #    for tmp_tar_list in tar_list:
+    #        fo.write(tmp_tar_list + "\n")
+    
+    scans_df = pd.read_csv(op.join(raw_dir, 'scans.tsv'), sep='\t')
+    scans_df = scans_df['file']
+    scans_df.to_csv(op.join(proj_work_dir, '{0}-processed.txt'.format(config_options['project'])), index=False)
+
     # Copy singularity images to scratch
     scratch_xnatdownload = op.join(args.work_dir, op.basename(xnatdownload_file))
     if not op.isfile(scratch_xnatdownload):
@@ -163,10 +167,22 @@ def main(argv=None):
                         run(cmd)
                     
                     #tar the subject and session directory and copy to raw dir
-                    with tarfile.open(op.join(raw_dir, '{sub}-{ses}.tar'.format(sub=tmp_sub, ses=tmp_ses)), "w") as tar:
+                    with tarfile.open(op.join(raw_dir, tmp_sub, tmp_ses, '{sub}-{ses}.tar'.format(sub=tmp_sub, ses=tmp_ses)), "w") as tar:
                         tar.add(op.join(raw_work_dir, '{sub}'.format(sub=tmp_sub)), arcname=os.path.basename(op.join(raw_work_dir, '{sub}'.format(sub=tmp_sub))))
                         shutil.rmtree(op.join(raw_work_dir, '{sub}'.format(sub=tmp_sub)))
                     
+                    scans_df = pd.read_csv(op.join(raw_dir, 'scans.tsv'), sep='\t')
+                    cols = scans_df.columns
+                    tmp_df = pd.DataFrame()
+                    tmp_df = tmp_df.append({'sub': tmp_sub}, ignore_index=True)
+                    tmp_df['ses'] = tmp_ses
+                    tmp_df['file'] = '{sub}-{ses}.tar'.format(sub=tmp_sub, ses=tmp_ses)
+                    moddate = os.path.getmtime(op.join(raw_dir, tmp_sub, tmp_ses, '{sub}-{ses}.tar'.format(sub=tmp_sub, ses=tmp_ses)))
+                    timedateobj = datetime.datetime.fromtimestamp(moddate)
+                    tmp_df['creation'] = datetime.datetime.strftime(datetimeob, "%m/%d/%Y, %H:%M")
+                    scans_df = scans_df.append(tmp_df)
+                    scans_df.to_csv(op.join(raw_dir, 'scans.tsv'), sep='\t', index=False)
+                                               
                     # run cis_proc.py
                     #cmd = ('python cis_proc.py -t {tarfile} -b {bidsdir} -w {work} --config {config} --sub {sub} --ses {ses} --n_procs {nprocs}'. format(tarfile=op.join(raw_dir, '{sub}-{ses}.tar'.format(sub=tmp_sub, ses=tmp_ses)), bidsdir=args.bids_dir, work=proj_work_dir, config=args.config, sub=tmp_sub.strip('sub-'), ses=tmp_ses.strip('ses-'), nprocs=args.n_procs))
                     #cmd = ('srun -J cis_proc-{proj}-{sub}-{ses} -e {err_file_loc} -o {out_file_loc} -c {nprocs} -q {hpc_queue} -p investor python /home/data/cis/cis-processing/cis_proc.py -t {tarfile} -b {bidsdir} -w {work} --config {config} --sub {sub} --ses {ses} --n_procs {nprocs}'. format(hpc_queue=config_options['hpc_queue'], proj=config_options['project'], err_file_loc = op.join('/home/data/cis/cis-processing/err', config_options['project'], 'cis_proc-{sub}-{ses}'.format(sub=tmp_sub, ses=tmp_ses)), out_file_loc= op.join('/home/data/cis/cis-processing/out', config_options['project'], 'cis_proc-{sub}-{ses}'.format(sub=tmp_sub, ses=tmp_ses)), tarfile=op.join(raw_dir, '{sub}-{ses}.tar'.format(sub=tmp_sub, ses=tmp_ses)), bidsdir=args.bids_dir, work=proj_work_dir, config=args.config, sub=tmp_sub.strip('sub-'), ses=tmp_ses.strip('ses-'), nprocs=args.n_procs))
