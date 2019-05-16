@@ -23,7 +23,8 @@ def run(command, env={}):
                                env=merged_env)
     while True:
         line = process.stdout.readline()
-        line = str(line).encode('utf-8')[:-1]
+        #line = str(line).encode('utf-8')[:-1]
+        line=str(line, 'utf-8')[:-1]
         print(line)
         if line == '' and process.poll() is not None:
             break
@@ -109,8 +110,7 @@ def main(argv=None):
     # Additional checks and copying for heuristics file
     heuristics_file = config_options['heuristics']
     if not heuristics_file.startswith('/'):
-        heuristics_file = op.join('/home/data/cis/cis-processing',
-                                  heuristics_file)
+        heuristics_file = op.join(os.path.dirname(args.bids_dir), heuristics_file)
 
     if not op.isfile(heuristics_file):
         raise ValueError('Heuristics file specified in config files must be '
@@ -210,11 +210,31 @@ def main(argv=None):
             out_ses_dir = op.join(out_sub_dir, 'ses-{0}'.format(args.ses))
             if not op.isdir(out_ses_dir):
                 shutil.copytree(scratch_ses_dir, out_ses_dir)
+                
             else:
                 print('Warning: Subject/session directory already exists in '
                       'dataset.')
         else:
             print('Warning: Subject directory already exists in dataset.')
+        
+        if args.ses is not None:
+            tmp_df = pd.read_csv(op.join(out_sub_dir, 'ses-{ses}'.format(ses=args.ses), 'sub-{sub}_ses-{ses}_scans.tsv'.format(sub=args.sub, ses=args.ses)), sep='\t')
+        else:
+            tmp_df = pd.read_csv(op.join(out_sub_dir, 'sub-{sub}_scans.tsv'.format(sub=args.sub)), sep='\t')
+            
+        #append scans.tsv file with remove and annot fields
+        tmp_df['remove'] = 0
+        tmp_df['annotation'] = ''
+        
+        #import master scans file
+        if op.isfile(op.join(os.path.dirname(args.bids_dir), 'code/{proj}_scans.tsv'.format(proj=config_options['project']))):
+            master_df = pd.read_csv(op.join(os.path.dirname(args.bids_dir), 'code/{proj}_scans.tsv'.format(proj=config_options['project'])), sep='\t')
+            master_df_headers = list(master_df)
+            master_df = master_df.append(tmp_df)
+            master_df.to_csv(op.join(os.path.dirname(args.bids_dir), 'code/{proj}_scans.tsv'.format(proj=config_options['project'])), sep='\t', index=False, columns=master_df_headers)
+        else:
+            tmp_df_headers = list(tmp_df)
+            tmp_df.to_csv(op.join(os.path.dirname(args.bids_dir), 'code/{proj}_scans.tsv'.format(proj=config_options['project'])), sep='\t', index=False, columns=tmp_df_headers)
 
         # Run MRIQC
         if not op.isdir(out_deriv_dir):
@@ -229,20 +249,54 @@ def main(argv=None):
         if not op.isdir(op.join(out_deriv_dir, 'reports')):
             os.makedirs(op.join(out_deriv_dir, 'reports'))
 
-        kwargs = ''
-        for field in config_options['mriqc_settings'].keys():
-            if isinstance(config_options['mriqc_settings'][field], list):
-                val = ' '.join(config_options['mriqc_settings'][field])
+        # Run MRIQC anat
+        for tmp_mod in config_options['mriqc_options']['anat']['mod'].keys():
+            kwargs = ''
+            for field in config_options['mriqc_options']['anat']['mod'][tmp_mod]['mriqc_settings'].keys():
+                if isinstance(config_options['mriqc_options']['anat']['mod'][tmp_mod]['mriqc_settings'][field], list):
+                    val = ' '.join(config_options['mriqc_options']['anat']['mod'][tmp_mod]['mriqc_settings'][field])
+                else:
+                    val = config_options['mriqc_options']['anat']['mod'][tmp_mod]['mriqc_settings'][field]
+                kwargs += '--{0} {1} '.format(field, val)
+            kwargs = kwargs.rstrip()
+            cmd = ('{sing} {bids} {out} participant --no-sub --verbose-reports '
+                   '-m {mod} '
+                   '-w {work} --n_procs {n_procs} '
+                   '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
+                                      out=scratch_deriv_dir, mod=tmp_mod,
+                                      work=mriqc_work_dir, n_procs=n_procs, kwargs=kwargs))
+            run(cmd)
+        
+        # Run MRIQC func
+        for tmp_task in config_options['mriqc_options']['func']['task'].keys():
+            print(op.join(scratch_bids_dir, 'sub-{sub}'.format(sub=args.sub), 'ses-{ses}'.format(ses=args.ses), 'func/sub-{sub}_ses-{ses}_task-{task}_run-01_bold.json'.format(sub=args.sub, ses=args.ses, task=tmp_task)))
+            if args.ses is not None:
+                if op.isfile(op.join(scratch_bids_dir, 'sub-{sub}'.format(sub=args.sub), 'ses-{ses}'.format(ses=args.ses), 'func/sub-{sub}_ses-{ses}_task-{task}_run-01_bold.json'.format(sub=args.sub, ses=args.ses, task=tmp_task))):
+                    run_mriqc=True
+                else:
+                    run_mriqc=False
             else:
-                val = config_options['mriqc_settings'][field]
-            kwargs += '--{0} {1} '.format(field, val)
-        kwargs = kwargs.rstrip()
-        cmd = ('{sing} {bids} {out} participant --no-sub --verbose-reports '
-               '--ica --correct-slice-timing -w {work} --n_procs {n_procs} '
-               '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
-                                  out=scratch_deriv_dir, work=mriqc_work_dir,
-                                  n_procs=n_procs, kwargs=kwargs))
-        run(cmd)
+                if op.isfile(op.join(scratch_bids_dir, 'sub-{sub}'.format(sub=args.sub), 'func/sub-{sub}_task-{task}_run-01_bold.json'.format(sub=args.sub, task=tmp_task))):
+                    run_mriqc=True
+                else:
+                    run_mriqc=False
+            
+            if run_mriqc:   
+                kwargs = ''
+                for field in config_options['mriqc_options']['func']['task'][tmp_task]['mriqc_settings'].keys():
+                    if isinstance(config_options['mriqc_options']['func']['task'][tmp_task]['mriqc_settings'][field], list):
+                        val = ' '.join(config_options['mriqc_options']['func']['task'][tmp_task]['mriqc_settings'][field])
+                    else:
+                        val = config_options['mriqc_options']['func']['task'][tmp_task]['mriqc_settings'][field]
+                    kwargs += '--{0} {1} '.format(field, val)
+                kwargs = kwargs.rstrip()
+                cmd = ('{sing} {bids} {out} participant --no-sub --verbose-reports '
+                       '--task-id {task} -m bold '
+                       '-w {work} --n_procs {n_procs} --correct-slice-timing '
+                       '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
+                                          out=scratch_deriv_dir, task=tmp_task,
+                                          work=mriqc_work_dir, n_procs=n_procs, kwargs=kwargs))
+                run(cmd)
 
         # Merge MRIQC results into final derivatives folder
         reports = glob(op.join(scratch_deriv_dir, 'reports/*.html'))
