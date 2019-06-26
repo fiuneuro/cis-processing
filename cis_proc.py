@@ -74,11 +74,10 @@ def main(argv=None):
     if not op.isfile(args.config):
         raise ValueError('Argument "config" must be an existing file.')
 
-    try:
-        n_procs = int(args.n_procs)
-    except:
+    if args.n_procs < 1:
         raise ValueError('Argument "n_procs" must be positive integer greater '
                          'than zero.')
+    n_procs = args.n_procs
 
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
