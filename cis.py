@@ -79,12 +79,10 @@ def main(argv=None):
     if not op.isfile(args.config):
         raise ValueError('Argument "config" must be an existing file.')
 
-    try:
-        n_procs = int(args.n_procs)
-    except:
+    if args.n_procs < 1:
         raise ValueError('Argument "n_procs" must be positive integer greater '
                          'than zero.')
-
+    n_procs = args.n_procs
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
 
@@ -221,7 +219,7 @@ def main(argv=None):
                            -n {nprocs} -q {hpc_queue} python /home/data/cis/cis-processing/cis_proc_mcr.py \
                            -t {tarfile} -b {bidsdir} -w {work} --config {config} \
                            --sub {sub} --ses {ses} \
-                           --n_procs {nprocs}'.format(hpc_queue=config_options['hpc_queue'],
+                           --n_procs {n_procs}'.format(hpc_queue=config_options['hpc_queue'],
                                                       proj=config_options['project'],
                                                       err_file_loc=op.join(proj_dir,
                                                                            'code/err',
