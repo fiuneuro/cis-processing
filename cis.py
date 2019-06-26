@@ -82,7 +82,6 @@ def main(argv=None):
     if args.n_procs < 1:
         raise ValueError('Argument "n_procs" must be positive integer greater '
                          'than zero.')
-    n_procs = args.n_procs
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
 
@@ -237,7 +236,7 @@ def main(argv=None):
                                                       config=args.config,
                                                       sub=tmp_sub.strip('sub-'),
                                                       ses=tmp_ses.strip('ses-'),
-                                                      nprocs=args.n_procs))
+                                                      n_procs=args.n_procs))
                     run(cmd)
 
                     # get date and time
