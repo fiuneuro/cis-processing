@@ -14,8 +14,9 @@ jobs:
       - run:
           name: Generate environment
           command: |
-            conda create -n venv python=2.6.6 pylint 'flake8<3.0' flake8-putty -yq
+            conda create -n venv python=2.7 pylint -yq
             source activate venv
+            pip install 'flake8<3.0' flake8-putty
       - run:
           name: Run style check
           command: |
