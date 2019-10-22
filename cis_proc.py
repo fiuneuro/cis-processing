@@ -306,6 +306,7 @@ def main(argv=None):
                                           work=mriqc_work_dir, n_procs=n_procs, kwargs=kwargs))
                 run(cmd)
 
+        print('Merging MRIQC')
         # Merge MRIQC results into final derivatives folder
         #reports = glob(op.join(scratch_deriv_dir, 'reports/*.html'))
         reports = glob(op.join(scratch_deriv_dir, '*.html'))
