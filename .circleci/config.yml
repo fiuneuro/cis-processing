@@ -12,10 +12,10 @@ jobs:
     steps:
       - checkout
       - run:
-        name: Generate environment
-        command: |
-          conda create -n venv python=2.6.6 pylint 'flake8<3.0' flake8-putty -yq
-          source activate venv
+          name: Generate environment
+          command: |
+            conda create -n venv python=2.6.6 pylint 'flake8<3.0' flake8-putty -yq
+            source activate venv
       - run:
           name: Run style check
           command: |
