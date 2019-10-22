@@ -2,14 +2,23 @@
 #
 # Check https://circleci.com/docs/2.0/language-python/ for more details
 #
-version: 2.1
-
-orbs:
-  pylint: qventus/python-lint@volatile
-
+version: 2
 workflows:
-  build:
-    jobs:
-      - pylint/lint:
-          pyversion:
-            - 2.6.6
+  jobs:
+    style_check:
+      working_directory: /tmp/src/cis-processing
+      docker:
+        # Ubuntu 14.04 with Docker 17.10.0-ce
+        - image: continuumio/miniconda3
+      steps:
+        - checkout
+        - run:
+          name: Generate environment
+          command: |
+            conda create -n venv python=2.6.6 pylint 'flake8<3.0' flake8-putty -yq
+            source activate venv
+        - run:
+            name: Run style check
+            command: |
+              source activate venv
+              flake8 cis-processing
