@@ -22,7 +22,6 @@ jobs:
           command: |
             source activate venv
             flake8 /tmp/src/cis-processing
-
 workflows:
   version: 2
   run_style_check:
