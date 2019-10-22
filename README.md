@@ -2,6 +2,8 @@
 Automated transfer, conversion, and processing of data acquired at the FIU
 Center for Imaging Science.
 
+[![CircleCI](https://circleci.com/gh/FIU-Neuro/cis-processing/tree/master.svg?style=svg)](https://circleci.com/gh/FIU-Neuro/cis-processing/tree/master)
+
 ## Why we built this tool
 We wanted to make it easier for researchers in our department to convert their
 neuroimaging data to BIDS format and to perform quality control on said data.
