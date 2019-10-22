@@ -102,7 +102,6 @@ def main(argv=None):
         raise ValueError('XNAT Download image specified in config files must be '
                          'an existing file.')
 
-
     # Make folders/files
     if not op.isdir(op.join(proj_dir, 'code/err')):
         os.makedirs(op.join(proj_dir, 'code/err'))
@@ -116,6 +115,8 @@ def main(argv=None):
     raw_dir = op.join(proj_dir, 'raw')
     if not op.isdir(raw_dir):
         os.makedirs(raw_dir)
+
+    fdir = op.dirname(__file__)
 
     #tar_list = os.listdir(raw_dir)
     #with open(op.join(proj_work_dir, '{0}-processed.txt'.format(config_options['project'])), 'a') as fo:
@@ -177,12 +178,13 @@ def main(argv=None):
                 for tmp_ses in ses_list:
                     #run the protocol check if requested
                     if args.protocol_check:
-                        cmd = ('python /home/data/cis/cis-processing/protocol_check.py -w {work} \
+                        cmd = ('python {fdir}/protocol_check.py -w {work} \
                                --bids_dir {bids_dir} \
                                --sub {sub} --ses {ses}'.format(work=raw_work_dir,
                                                                bids_dir=args.bids_dir,
                                                                sub=tmp_sub,
-                                                               ses=tmp_ses))
+                                                               ses=tmp_ses,
+                                                               fdir=fdir))
                         run(cmd)
 
                     #tar the subject and session directory and copy to raw dir
@@ -211,11 +213,9 @@ def main(argv=None):
                     scans_df.to_csv(op.join(raw_dir, 'scans.tsv'), sep='\t', index=False)
 
                     # run cis_proc.py
-                    #cmd = ('python cis_proc.py -t {tarfile} -b {bidsdir} -w {work} --config {config} --sub {sub} --ses {ses} --n_procs {nprocs}'. format(tarfile=op.join(raw_dir, '{sub}-{ses}.tar'.format(sub=tmp_sub, ses=tmp_ses)), bidsdir=args.bids_dir, work=proj_work_dir, config=args.config, sub=tmp_sub.strip('sub-'), ses=tmp_ses.strip('ses-'), nprocs=args.n_procs))
-                    #cmd = ('srun -J cis_proc-{proj}-{sub}-{ses} -e {err_file_loc} -o {out_file_loc} -c {nprocs} -q {hpc_queue} -p investor python /home/data/cis/cis-processing/cis_proc.py -t {tarfile} -b {bidsdir} -w {work} --config {config} --sub {sub} --ses {ses} --n_procs {nprocs}'. format(hpc_queue=config_options['hpc_queue'], proj=config_options['project'], err_file_loc = op.join('/home/data/cis/cis-processing/err', config_options['project'], 'cis_proc-{sub}-{ses}'.format(sub=tmp_sub, ses=tmp_ses)), out_file_loc= op.join('/home/data/cis/cis-processing/out', config_options['project'], 'cis_proc-{sub}-{ses}'.format(sub=tmp_sub, ses=tmp_ses)), tarfile=op.join(raw_dir, '{sub}-{ses}.tar'.format(sub=tmp_sub, ses=tmp_ses)), bidsdir=args.bids_dir, work=proj_work_dir, config=args.config, sub=tmp_sub.strip('sub-'), ses=tmp_ses.strip('ses-'), nprocs=args.n_procs))
                     cmd = ('bsub -J cis_proc-{proj}-{sub}-{ses} \
                            -eo {err_file_loc} -oo {out_file_loc} \
-                           -n {nprocs} -q {hpc_queue} python /home/data/cis/cis-processing/cis_proc_mcr.py \
+                           -n {nprocs} -q {hpc_queue} python {fdir}/cis_proc.py \
                            -t {tarfile} -b {bidsdir} -w {work} --config {config} \
                            --sub {sub} --ses {ses} \
                            --n_procs {n_procs}'.format(hpc_queue=config_options['hpc_queue'],
@@ -236,7 +236,8 @@ def main(argv=None):
                                                       config=args.config,
                                                       sub=tmp_sub.strip('sub-'),
                                                       ses=tmp_ses.strip('ses-'),
-                                                      n_procs=args.n_procs))
+                                                      n_procs=args.n_procs,
+                                                      fdir=fdir))
                     run(cmd)
 
                     # get date and time
