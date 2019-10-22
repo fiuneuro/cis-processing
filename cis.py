@@ -23,6 +23,7 @@ def run(command, env={}):
     while True:
         line = process.stdout.readline()
         line = str(line, 'utf-8')[:-1]
+        print(line)
         if line == '' and process.poll() is not None:
             break
 
