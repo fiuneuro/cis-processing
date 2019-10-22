@@ -10,6 +10,7 @@ import shutil
 import tarfile
 import subprocess
 from glob import glob
+import getpass
 
 import argparse
 import pandas as pd
@@ -24,7 +25,7 @@ def run(command, env={}):
     while True:
         line = process.stdout.readline()
         #line = str(line).encode('utf-8')[:-1]
-        line = str(line, 'utf-8')[:-1]
+        line=str(line, 'utf-8')[:-1]
         print(line)
         if line == '' and process.poll() is not None:
             break
@@ -77,7 +78,8 @@ def main(argv=None):
     if args.n_procs < 1:
         raise ValueError('Argument "n_procs" must be positive integer greater '
                          'than zero.')
-    n_procs = args.n_procs
+    else:
+        n_procs = int(args.n_procs)
 
     with open(args.config, 'r') as fo:
         config_options = json.load(fo)
@@ -101,7 +103,7 @@ def main(argv=None):
                              config_options['bidsifier'])
     mriqc_file = op.join('/home/data/cis/singularity-images/',
                          config_options['mriqc'])
-    mriqc_version = op.basename(mriqc_file).split('-')[0].split('_')[-1]
+    mriqc_version = op.basename(mriqc_file).split('-')[0].split('_')[-1].split('.sif')[0]
 
     out_deriv_dir = op.join(args.bids_dir,
                             'derivatives/mriqc-{0}'.format(mriqc_version))
@@ -132,8 +134,10 @@ def main(argv=None):
                     op.join(scan_work_dir, 'heuristics.py'))
 
     # Copy singularity images to scratch
-    scratch_bidsifier = op.join(CIS_DIR, op.basename(bidsifier_file))
-    scratch_mriqc = op.join(CIS_DIR, op.basename(mriqc_file))
+    #scratch_bidsifier = op.join(CIS_DIR, op.basename(bidsifier_file))
+    #scratch_mriqc = op.join(CIS_DIR, op.basename(mriqc_file))
+    scratch_bidsifier = op.join(scan_work_dir, op.basename(bidsifier_file))
+    scratch_mriqc = op.join(scan_work_dir, op.basename(mriqc_file))
     if not op.isfile(scratch_bidsifier):
         shutil.copyfile(bidsifier_file, scratch_bidsifier)
         os.chmod(scratch_bidsifier, 0o775)
@@ -157,20 +161,24 @@ def main(argv=None):
     shutil.copyfile(args.tar_file, work_tar_file)
 
     # Run BIDSifier
-    cmd = ('{sing} -d {work} --heuristics {heur} --project {proj} --sub {sub} '
-           '--ses {ses}'.format(sing=scratch_bidsifier, work=scan_work_dir,
+    #cmd = ('{sing} -d {work} --heuristics {heur} --project {proj} --sub {sub} '
+    #       '--ses {ses}'.format(sing=scratch_bidsifier, work=scan_work_dir,
+    #                            heur=op.join(scan_work_dir, 'heuristics.py'),
+    #                            sub=args.sub, ses=args.ses, proj=config_options['project']))
+    cmd = ('{sing} -d {work} --heuristics {heur} --sub {sub} '
+           '--ses {ses} -o {outdir}'.format(sing=scratch_bidsifier, work=work_tar_file,
                                 heur=op.join(scan_work_dir, 'heuristics.py'),
-                                sub=args.sub, ses=args.ses, proj=config_options['project']))
+                                sub=args.sub, ses=args.ses, outdir=op.join(scan_work_dir, 'bids')))
     run(cmd)
 
     # Check if BIDSification ran successfully
     bids_successful = False
-    with open(op.join(scan_work_dir, 'validator.txt'), 'r') as fo:
+    with open(op.join(scan_work_dir, 'bids', 'validator.txt'), 'r') as fo:
         validator_result = fo.read()
 
     if "This dataset appears to be BIDS compatible" in validator_result:
         bids_successful = True
-    os.remove(op.join(scan_work_dir, 'validator.txt'))
+    os.remove(op.join(scan_work_dir, 'bids', 'validator.txt'))
 
     if bids_successful:
         # Merge BIDS dataset into final folder
@@ -236,17 +244,18 @@ def main(argv=None):
             tmp_df.to_csv(op.join(os.path.dirname(args.bids_dir), 'code/{proj}_scans.tsv'.format(proj=config_options['project'])), sep='\t', index=False, columns=tmp_df_headers)
 
         # Run MRIQC
+        if not op.isdir(op.join(args.work_dir, 'templateflow')):
+            shutil.copytree('/home/data/cis/templateflow', op.join(args.work_dir, 'templateflow'))
+
+        username = getpass.getuser()
+        if not op.isdir(op.join('/home', username, '.cache/templateflow')):
+            os.makedirs(op.join('/home', username, '.cache/templateflow'))
+
         if not op.isdir(out_deriv_dir):
             os.makedirs(out_deriv_dir)
 
-        if not op.isdir(op.join(out_deriv_dir, 'derivatives')):
-            os.makedirs(op.join(out_deriv_dir, 'derivatives'))
-
         if not op.isdir(op.join(out_deriv_dir, 'logs')):
             os.makedirs(op.join(out_deriv_dir, 'logs'))
-
-        if not op.isdir(op.join(out_deriv_dir, 'reports')):
-            os.makedirs(op.join(out_deriv_dir, 'reports'))
 
         # Run MRIQC anat
         for tmp_mod in config_options['mriqc_options']['anat']['mod'].keys():
@@ -258,10 +267,10 @@ def main(argv=None):
                     val = config_options['mriqc_options']['anat']['mod'][tmp_mod]['mriqc_settings'][field]
                 kwargs += '--{0} {1} '.format(field, val)
             kwargs = kwargs.rstrip()
-            cmd = ('{sing} {bids} {out} participant --no-sub --verbose-reports '
+            cmd = ('singularity run --cleanenv -B {templateflowdir}:$HOME/.cache/templateflow {sing} {bids} {out} participant --no-sub --verbose-reports '
                    '-m {mod} '
                    '-w {work} --n_procs {n_procs} '
-                   '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
+                   '{kwargs} '.format(templateflowdir = op.join(args.work_dir, 'templateflow'), sing=scratch_mriqc, bids=scratch_bids_dir,
                                       out=scratch_deriv_dir, mod=tmp_mod,
                                       work=mriqc_work_dir, n_procs=n_procs, kwargs=kwargs))
             run(cmd)
@@ -269,14 +278,16 @@ def main(argv=None):
         # Run MRIQC func
         for tmp_task in config_options['mriqc_options']['func']['task'].keys():
             print(op.join(scratch_bids_dir, 'sub-{sub}'.format(sub=args.sub), 'ses-{ses}'.format(ses=args.ses), 'func/sub-{sub}_ses-{ses}_task-{task}_run-01_bold.json'.format(sub=args.sub, ses=args.ses, task=tmp_task)))
-            if args.ses:
-                run_mriqc = op.isfile(op.join(scratch_bids_dir, 'sub-{sub}'.format(sub=args.sub), 'ses-{ses}'.format(ses=args.ses), 'func/sub-{sub}_ses-{ses}_task-{task}_run-01_bold.json'.format(sub=args.sub, ses=args.ses, task=tmp_task)))
-
+            if args.ses is not None:
+                if op.isfile(op.join(scratch_bids_dir, 'sub-{sub}'.format(sub=args.sub), 'ses-{ses}'.format(ses=args.ses), 'func/sub-{sub}_ses-{ses}_task-{task}_run-01_bold.json'.format(sub=args.sub, ses=args.ses, task=tmp_task))):
+                    run_mriqc=True
+                else:
+                    run_mriqc=False
             else:
-                run_mriqc = op.isfile(op.join(scratch_bids_dir, 'sub-{sub}'.format(sub=args.sub),
-                                              'func/sub-{sub}_task-{task}_run-01_bold.json'.format(sub=args.sub,
-                                                                                                   task=tmp_task)))
-
+                if op.isfile(op.join(scratch_bids_dir, 'sub-{sub}'.format(sub=args.sub), 'func/sub-{sub}_task-{task}_run-01_bold.json'.format(sub=args.sub, task=tmp_task))):
+                    run_mriqc=True
+                else:
+                    run_mriqc=False
 
             if run_mriqc:
                 kwargs = ''
@@ -287,28 +298,30 @@ def main(argv=None):
                         val = config_options['mriqc_options']['func']['task'][tmp_task]['mriqc_settings'][field]
                     kwargs += '--{0} {1} '.format(field, val)
                 kwargs = kwargs.rstrip()
-                cmd = ('{sing} {bids} {out} participant --no-sub --verbose-reports '
+                cmd = ('singularity run --cleanenv -B {templateflowdir}:$HOME/.cache/templateflow {sing} {bids} {out} participant --no-sub --verbose-reports '
                        '--task-id {task} -m bold '
                        '-w {work} --n_procs {n_procs} --correct-slice-timing '
-                       '{kwargs} '.format(sing=scratch_mriqc, bids=scratch_bids_dir,
+                       '{kwargs} '.format(templateflowdir = op.join(args.work_dir, 'templateflow'), sing=scratch_mriqc, bids=scratch_bids_dir,
                                           out=scratch_deriv_dir, task=tmp_task,
                                           work=mriqc_work_dir, n_procs=n_procs, kwargs=kwargs))
                 run(cmd)
 
         # Merge MRIQC results into final derivatives folder
-        reports = glob(op.join(scratch_deriv_dir, 'reports/*.html'))
-        reports = [f for f in reports if '_group' not in op.basename(f)]
+        #reports = glob(op.join(scratch_deriv_dir, 'reports/*.html'))
+        reports = glob(op.join(scratch_deriv_dir, '*.html'))
+        reports = [f for f in reports if 'group_' not in op.basename(f)]
         for report in reports:
-            shutil.copy(report, op.join(out_deriv_dir, 'reports',
+            shutil.copy(report, op.join(out_deriv_dir,
                                         op.basename(report)))
 
         logs = glob(op.join(scratch_deriv_dir, 'logs/*'))
         for log in logs:
             shutil.copy(log, op.join(out_deriv_dir, 'logs', op.basename(log)))
 
-        derivatives = glob(op.join(scratch_deriv_dir, 'derivatives/*'))
+        derivatives = glob(op.join(scratch_deriv_dir, 'sub-*'))
+        derivatives = [x for x in derivatives if '.html' not in op.basename(x)]
         for derivative in derivatives:
-            shutil.copy(derivative, op.join(out_deriv_dir, 'derivatives',
+            shutil.copytree(derivative, op.join(out_deriv_dir,
                                             op.basename(derivative)))
 
         csv_files = glob(op.join(scratch_deriv_dir, '*.csv'))
