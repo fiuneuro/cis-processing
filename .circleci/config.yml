@@ -1,0 +1,13 @@
+# Python CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-python/ for more details
+#
+version: 2.1
+orbs:
+  pylint: qventus/python-lint@volatile
+workflows:
+  build:
+    jobs:
+      - pylint/lint:
+          pyversion:
+            - 2.6.6
