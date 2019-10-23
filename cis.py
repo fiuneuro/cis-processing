@@ -101,9 +101,9 @@ def main(argv=None):
 
     # Additional checks and copying for XNAT Download file
     if not op.isfile(xnatdownload_file):
-        raise ValueError('XNAT Download image specified in config \
-            files must be an existing file.')
-
+        raise ValueError('XNAT Download image specified in config files must be '
+                         'an existing file.')
+        
     # Make folders/files
     if not op.isdir(op.join(proj_dir, 'code/err')):
         os.makedirs(op.join(proj_dir, 'code/err'))
@@ -117,6 +117,9 @@ def main(argv=None):
     raw_dir = op.join(proj_dir, 'raw')
     if not op.isdir(raw_dir):
         os.makedirs(raw_dir)
+
+
+    fdir = op.dirname(__file__)
 
     scans_df = pd.read_csv(op.join(raw_dir, 'scans.tsv'), sep='\t')
     scans_df = scans_df['file']
@@ -182,15 +185,14 @@ def main(argv=None):
                 for tmp_ses in ses_list:
                     # run the protocol check if requested
                     if args.protocol_check:
-                        cmd = ('python \
-                                ./protocol_check.py \
-                                -w {work} \
-                                --bids_dir {bids_dir} \
-                                --sub {sub} \
-                                --ses {ses}'.format(work=raw_work_dir,
-                                                    bids_dir=args.bids_dir,
-                                                    sub=tmp_sub,
-                                                    ses=tmp_ses))
+                      
+                        cmd = ('python {fdir}/protocol_check.py -w {work} \
+                               --bids_dir {bids_dir} \
+                               --sub {sub} --ses {ses}'.format(work=raw_work_dir,
+                                                               bids_dir=args.bids_dir,
+                                                               sub=tmp_sub,
+                                                               ses=tmp_ses,
+                                                               fdir=fdir))
                         run(cmd)
 
                     # tar the subject and session directory and copy to raw dir
@@ -230,40 +232,31 @@ def main(argv=None):
                                     index=False)
 
                     # run cis_proc.py
-                    cmd = ('sbatch -J cis_proc-{proj}-{sub}-{ses} \
-                        -e {err_file_loc} -o {out_file_loc} \
-                        -c {nprocs} \
-                        --qos {hpc_queue} \
-                        --account {hpc_acct} \
-                        -p centos7 \
-                        --wrap="python ./cis_proc.py -t {tarfile} \
-                        -b {bidsdir} \
-                        -w {work} \
-                        --config {config} \
-                        --sub {sub} \
-                        --ses {ses} \
-                        --n_procs {nprocs}"'.format(hpc_queue=config_options['hpc_queue'],
-                                                    hpc_acct=config_options['hpc_account'],
-                                                    proj=config_options['project'],
-                                                    err_file_loc=op.join(proj_dir,
-                                                                         'code/err',
-                                                                         'cis_proc-{sub}-{ses}'.format(sub=tmp_sub,
-                                                                                                       ses=tmp_ses)),
-                                                    out_file_loc=op.join(proj_dir,
-                                                                         'code/out',
-                                                                         'cis_proc-{sub}-{ses}'.format(sub=tmp_sub,
-                                                                                                       ses=tmp_ses)),
-                                                    tarfile=op.join(raw_dir,
-                                                                    tmp_sub,
-                                                                    tmp_ses,
-                                                                    '{sub}-{ses}.tar'.format(sub=tmp_sub,
-                                                                                             ses=tmp_ses)),
-                                                    bidsdir=args.bids_dir,
-                                                    work=proj_work_dir,
-                                                    config=args.config,
-                                                    sub=tmp_sub.strip('sub-'),
-                                                    ses=tmp_ses.strip('ses-'),
-                                                    nprocs=n_procs))
+                    cmd = ('bsub -J cis_proc-{proj}-{sub}-{ses} \
+                           -eo {err_file_loc} -oo {out_file_loc} \
+                           -n {nprocs} -q {hpc_queue} python {fdir}/cis_proc.py \
+                           -t {tarfile} -b {bidsdir} -w {work} --config {config} \
+                           --sub {sub} --ses {ses} \
+                           --n_procs {n_procs}'.format(hpc_queue=config_options['hpc_queue'],
+                                                      proj=config_options['project'],
+                                                      err_file_loc=op.join(proj_dir,
+                                                                           'code/err',
+                                                                           'cis_proc-{sub}-{ses}'.format(sub=tmp_sub,
+                                                                                                         ses=tmp_ses)),
+                                                      out_file_loc=op.join(proj_dir,
+                                                                            'code/out',
+                                                                            'cis_proc-{sub}-{ses}'.format(sub=tmp_sub,
+                                                                                                          ses=tmp_ses)),
+                                                      tarfile=op.join(raw_dir,
+                                                                      '{sub}-{ses}.tar'.format(sub=tmp_sub,
+                                                                                               ses=tmp_ses)),
+                                                      bidsdir=args.bids_dir,
+                                                      work=proj_work_dir,
+                                                      config=args.config,
+                                                      sub=tmp_sub.strip('sub-'),
+                                                      ses=tmp_ses.strip('ses-'),
+                                                      n_procs=args.n_procs,
+                                                      fdir=fdir))
                     run(cmd)
 
                     # get date and time
