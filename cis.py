@@ -22,7 +22,8 @@ def run(command, env={}):
                                env=merged_env)
     while True:
         line = process.stdout.readline()
-        line = str(line, 'utf-8')[:-1]
+        # line = str(line, 'utf-8')[:-1]
+        line = line.decode('utf-8')[:-1]
         print(line)
         if line == '' and process.poll() is not None:
             break
@@ -34,8 +35,8 @@ def run(command, env={}):
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='Initiate XNAT download and \
-                        CIS proc.')
+    parser = argparse.ArgumentParser(description='Initiate XNAT download and '
+                                                 'CIS proc.')
     parser.add_argument('-b', '--bidsdir', required=True, dest='bids_dir',
                         help=('Output directory for BIDS dataset and '
                               'derivatives.'))
@@ -47,15 +48,15 @@ def get_parser():
                         help='Path to the config json file.')
     parser.add_argument('--protocol_check', required=False,
                         action='store_true',
-                        help='Will perform a protocol check to determine if \
-                        the correct number of scans and TRs are present.')
+                        help='Will perform a protocol check to determine if '
+                             'the correct number of scans and TRs are present.')
     parser.add_argument('--autocheck', required=False, action='store_true',
-                        help='Will automatically download all scans from XNAT \
-                        that are not currently in the project folder.')
+                        help='Will automatically download all scans from XNAT '
+                             'that are not currently in the project folder.')
     parser.add_argument('--xnat_experiment', required=False, dest='xnatexp',
                         default=None,
-                        help='XNAT Experiment ID (i.e., XNAT_E*) for single \
-                        session download.')
+                        help='XNAT Experiment ID (i.e., XNAT_E*) for single '
+                             'session download.')
     parser.add_argument('--n_procs', required=False, dest='n_procs',
                         help='Number of processes with which to run MRIQC.',
                         default=1, type=int)
@@ -91,8 +92,7 @@ def main(argv=None):
         raise Exception('Config File must be updated with project field'
                         'See Sample Config File for More information')
 
-    proj_work_dir = op.join(args.work_dir,
-                            '{0}'.format(config_options['project']))
+    proj_work_dir = op.join(args.work_dir, config_options['project'])
     if not proj_work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
 
@@ -103,7 +103,7 @@ def main(argv=None):
     if not op.isfile(xnatdownload_file):
         raise ValueError('XNAT Download image specified in config files must be '
                          'an existing file.')
-        
+
     # Make folders/files
     if not op.isdir(op.join(proj_dir, 'code/err')):
         os.makedirs(op.join(proj_dir, 'code/err'))
@@ -185,7 +185,7 @@ def main(argv=None):
                 for tmp_ses in ses_list:
                     # run the protocol check if requested
                     if args.protocol_check:
-                      
+
                         cmd = ('python {fdir}/protocol_check.py -w {work} \
                                --bids_dir {bids_dir} \
                                --sub {sub} --ses {ses}'.format(work=raw_work_dir,
