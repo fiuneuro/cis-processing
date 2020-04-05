@@ -1,8 +1,9 @@
-# Python CircleCI 2.0 configuration file
+# Python CircleCI 2.1 configuration file
 #
 # Check https://circleci.com/docs/2.0/language-python/ for more details
 #
-version: 2
+version: 2.1
+
 jobs:
   style_check:
     working_directory: /tmp/src/cis-processing
@@ -18,12 +19,12 @@ jobs:
             source activate venv
             pip install 'flake8<3.0' flake8-putty
       - run:
-          name: Run style check
+          name: Style check
           command: |
             source activate venv
-            flake8 /tmp/src/cis-processing
+            flake8 --max-line-length=100 --exclude=heuristics /tmp/src/cis-processing
 workflows:
-  version: 2
-  run_style_check:
+  version: 2.1
+  build_test:
     jobs:
       - style_check

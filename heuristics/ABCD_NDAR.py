@@ -1,7 +1,6 @@
 """
 BIDS version: 1.0.1
 """
-import os
 
 
 def create_key(template, outtype=('nii.gz',), annotation_classes=None):
