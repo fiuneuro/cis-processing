@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Compile group-level MRIQC results.
-"""
+"""Compile group-level MRIQC results."""
 import os
 import os.path as op
 import json
@@ -13,7 +11,7 @@ import argparse
 from utils import run
 
 
-def get_parser():
+def _get_parser():
     parser = argparse.ArgumentParser(description='Run MRIQC on BIDS dataset.')
     parser.add_argument('-b', '--bidsdir', required=True, dest='bids_dir',
                         help=('Output directory for BIDS dataset and '
@@ -39,7 +37,7 @@ def get_parser():
 
 
 def main(argv=None):
-    args = get_parser().parse_args(argv)
+    args = _get_parser().parse_args(argv)
 
     CIS_DIR = '/scratch/cis_dataqc/'
 
@@ -91,44 +89,38 @@ def main(argv=None):
         shutil.copytree(out_deriv_dir, scratch_deriv_dir)
         cmd = ('{sing} {bids} {out} group --no-sub --verbose-reports '
                '-w {work} --n_procs {n_procs} '.format(
-                    sing=scratch_mriqc, bids=args.bids_dir,
-                    out=scratch_deriv_dir,
-                    work=scratch_mriqc_work_dir, n_procs=n_procs))
+                   sing=scratch_mriqc, bids=args.bids_dir,
+                   out=scratch_deriv_dir,
+                   work=scratch_mriqc_work_dir, n_procs=n_procs))
         run(cmd)
 
-    if op.isfile(op.join(scratch_deriv_dir, 'bold.csv')):
-        shutil.copy(op.join(scratch_deriv_dir, 'bold.csv'), out_deriv_dir)
-        shutil.copy(op.join(scratch_deriv_dir, 'reports/bold_group.html'),
-                    op.join(out_deriv_dir, 'reports'))
-
-    if op.isfile(op.join(scratch_deriv_dir, 'T1w.csv')):
-        shutil.copy(op.join(scratch_deriv_dir, 'T1w.csv'), out_deriv_dir)
-        shutil.copy(op.join(scratch_deriv_dir, 'reports/T1w_group.html'),
-                    op.join(out_deriv_dir, 'reports'))
-
-    if op.isfile(op.join(scratch_deriv_dir, 'T2w.csv')):
-        shutil.copy(op.join(scratch_deriv_dir, 'T2w.csv'), out_deriv_dir)
-        shutil.copy(op.join(scratch_deriv_dir, 'reports/T2w_group.html'),
-                    op.join(out_deriv_dir, 'reports'))
+    for modality in ['bold', 'T1w', 'T2w']:
+        out_csv = op.join(scratch_deriv_dir, modality + '.csv')
+        out_html = op.join(scratch_deriv_dir, 'reports', modality + '.html')
+        if op.isfile(out_csv):
+            shutil.copy(out_csv, out_deriv_dir)
+            shutil.copy(out_html, op.join(out_deriv_dir, 'reports'))
 
     # get date and time
     now = datetime.datetime.now()
     date_time = now.strftime("%Y-%m-%d %H:%M")
     # append the email message
-    message_file = op.join(args.work_dir, '{0}-mriqc-message.txt'.format(config_options['project']))
+    message_file = op.join(
+        args.work_dir,
+        '{0}-mriqc-message.txt'.format(config_options['project']))
     with open(message_file, 'a') as fo:
         fo.write('Group quality control report for {proj} prepared on '
                  '{datetime}\n'.format(
-                    proj=config_options['project'],
-                    datetime=date_time))
+                     proj=config_options['project'],
+                     datetime=date_time))
 
     cmd = ("mail -s '{proj} MRIQC Group Report' "
            "-a {mriqc_dir}/reports/bold_group.html "
            "-a {mriqc_dir}/reports/T1w_group.html {emails} < {message}".format(
-            proj=config_options['project'],
-            mriqc_dir=out_deriv_dir,
-            emails=config_options['email'],
-            message=message_file))
+               proj=config_options['project'],
+               mriqc_dir=out_deriv_dir,
+               emails=config_options['email'],
+               message=message_file))
     run(cmd)
 
     shutil.rmtree(scratch_deriv_dir)
