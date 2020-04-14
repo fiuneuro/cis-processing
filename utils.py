@@ -1,6 +1,4 @@
-"""
-Utilities used by other modules in the cis-processing workflow.
-"""
+"""Utilities used by other modules in the cis-processing workflow."""
 import os
 import os.path as op
 import subprocess
@@ -9,6 +7,7 @@ import pandas as pd
 
 
 def run(command, env=None):
+    """Run a given command with certain environment variables set."""
     merged_env = os.environ
     if env:
         merged_env.update(env)
@@ -29,7 +28,8 @@ def run(command, env=None):
 
 
 def clean_csv(in_file):
-    """
+    """Convert NaNs to zeroes.
+
     Convert NaNs in a csv to zeros. Necessary for using the MRIQC
     classifier on datasets which may have skull-stripped data.
     This problem is discussed here (with no solution):
@@ -42,7 +42,7 @@ def clean_csv(in_file):
     d = op.dirname(in_file)
     fname, ext = op.splitext(fname)
     out_fname = fname + '_cleaned'
-    out_file = op.join(d, out_fname+ext)
+    out_file = op.join(d, out_fname + ext)
 
     df = pd.read_csv(in_file)
     df = df.fillna(0)

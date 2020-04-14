@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""
-The full cis-processing workflow.
-"""
+"""The full cis-processing workflow."""
 import os
 import os.path as op
+import re
 import json
 import shutil
 from glob import glob
@@ -17,46 +16,52 @@ from utils import run
 
 def _get_parser():
     parser = argparse.ArgumentParser(description='Run MRIQC on BIDS dataset.')
-    parser.add_argument('-t', '--tarfile',
-                        required=True,
-                        dest='tar_file',
-                        help='Tarred file containing raw (dicom) data.')
-    parser.add_argument('-b', '--bidsdir',
-                        required=True,
-                        dest='bids_dir',
-                        help='Output directory for BIDS dataset and '
-                             'derivatives.')
-    parser.add_argument('-w', '--workdir',
-                        required=False,
-                        dest='work_dir',
-                        default=None,
-                        help='Path to a working directory. Defaults to work '
-                             'subfolder in dset_dir.')
-    parser.add_argument('--config',
-                        required=True,
-                        dest='config',
-                        help='Path to the config json file.')
-    parser.add_argument('--sub',
-                        required=True,
-                        dest='sub',
-                        help='The label of the subject to analyze.')
-    parser.add_argument('--ses',
-                        required=False,
-                        dest='ses',
-                        help='Session number',
-                        default=None)
-    parser.add_argument('--n_procs',
-                        required=False,
-                        dest='n_procs',
-                        help='Number of processes with which to run MRIQC.',
-                        default=1,
-                        type=int)
+    parser.add_argument(
+        '-t', '--tarfile',
+        required=True,
+        dest='tar_file',
+        help='Tarred file containing raw (dicom) data.')
+    parser.add_argument(
+        '-b', '--bidsdir',
+        required=True,
+        dest='bids_dir',
+        help='Output directory for BIDS dataset and '
+             'derivatives.')
+    parser.add_argument(
+        '-w', '--workdir',
+        required=False,
+        dest='work_dir',
+        default=None,
+        help='Path to a working directory. Defaults to work '
+             'subfolder in dset_dir.')
+    parser.add_argument(
+        '--config',
+        required=True,
+        dest='config',
+        help='Path to the config json file.')
+    parser.add_argument(
+        '--sub',
+        required=True,
+        dest='sub',
+        help='The label of the subject to analyze.')
+    parser.add_argument(
+        '--ses',
+        required=False,
+        dest='ses',
+        help='Session number',
+        default=None)
+    parser.add_argument(
+        '--n_procs',
+        required=False,
+        dest='n_procs',
+        help='Number of processes with which to run MRIQC.',
+        default=1,
+        type=int)
     return parser
 
 
 def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
-    """
-    """
+    """Runtime for cis_proc.py."""
     CIS_DIR = '/scratch/cis_dataqc/'
 
     # Check inputs
@@ -83,13 +88,10 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
         raise Exception('Config File must be updated with project field'
                         'See Sample Config File for More information')
 
-    if ses is None:
-        scan_work_dir = op.join(work_dir,
-                                '{0}-{1}'.format(config_options['project'], sub))
-    else:
-        scan_work_dir = op.join(work_dir,
-                                '{0}-{1}-{2}'.format(config_options['project'], sub,
-                                                     ses))
+    scan_work_dir = op.join(
+        work_dir, '{0}-{1}'.format(config_options['project'], sub))
+    if ses:  # If ses is specified, append -<ses-name> to workdir
+        scan_work_dir += '-{0}'.format(ses)
 
     if not scan_work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
@@ -98,7 +100,7 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
                              config_options['bidsifier'])
     mriqc_file = op.join('/home/data/cis/singularity-images/',
                          config_options['mriqc'])
-    mriqc_version = op.basename(mriqc_file).split('-')[0].split('_')[-1].split('.sif')[0]
+    mriqc_version = re.search(r'_([\d.]+)', mriqc_file).group(1)
 
     out_deriv_dir = op.join(bids_dir,
                             'derivatives/mriqc-{0}'.format(mriqc_version))
@@ -144,18 +146,18 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     mriqc_work_dir = op.join(scan_work_dir, 'work')
 
     # Copy tar file to work_dir
-    if ses is None:
-        work_tar_file = op.join(scan_work_dir, 'sub-{0}.tar'.format(sub))
-    else:
-        work_tar_file = op.join(scan_work_dir, 'sub-{0}-ses-{1}.tar'.format(sub, ses))
+    work_tar_file = op.join(scan_work_dir, 'sub-{0}.tar'.format(sub))
+    if ses:  # If session is specified, replace .tar and add -ses-<session>.tar
+        work_tar_file = work_tar_file.replace(
+            '.tar', '-ses-{0}.tar'.format(ses))
     shutil.copyfile(tar_file, work_tar_file)
 
     # Run BIDSifier
     cmd = ('{sing} -d {work} --heuristics {heur} --sub {sub} '
            '--ses {ses} -o {outdir}'.format(
-                sing=scratch_bidsifier, work=work_tar_file,
-                heur=op.join(scan_work_dir, 'heuristics.py'),
-                sub=sub, ses=ses, outdir=op.join(scan_work_dir, 'bids')))
+               sing=scratch_bidsifier, work=work_tar_file,
+               heur=op.join(scan_work_dir, 'heuristics.py'),
+               sub=sub, ses=ses, outdir=op.join(scan_work_dir, 'bids')))
     run(cmd)
 
     # Check if BIDSification ran successfully
@@ -176,12 +178,12 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
                 shutil.copyfile(op.join(scan_work_dir, 'bids', dset_file),
                                 op.join(bids_dir, dset_file))
 
-        new_participants_df = pd.read_csv(op.join(scan_work_dir, 'bids/participants.tsv'),
-                                          sep='\t')
-        new_participants_df = new_participants_df.T.drop_duplicates().T
-        orig_participants_df = pd.read_csv(op.join(bids_dir, 'participants.tsv'),
-                                           sep='\t')
-        orig_participants_df = orig_participants_df.T.drop_duplicates().T
+        new_participants_df = pd.read_csv(
+            op.join(scan_work_dir, 'bids/participants.tsv'),
+            sep='\t').T.drop_duplicates().T
+        orig_participants_df = pd.read_csv(
+            op.join(bids_dir, 'participants.tsv'),
+            sep='\t').T.drop_duplicates().T
 
         # Check if row already in participants file
         matches = new_participants_df[
@@ -189,9 +191,11 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
         ]
         match = matches.index.values.size
         if not match:
-            new_participants_df = pd.concat((new_participants_df, orig_participants_df))
-            new_participants_df.to_csv(op.join(bids_dir, 'participants.tsv'),
-                                       sep='\t', index=False)
+            new_participants_df = pd.concat(
+                [new_participants_df, orig_participants_df])
+            new_participants_df.to_csv(
+                op.join(bids_dir, 'participants.tsv'),
+                sep='\t', index=False)
         else:
             print('Subject/session already found in participants.tsv')
 
@@ -205,30 +209,27 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
             if not op.isdir(out_ses_dir):
                 shutil.copytree(scratch_ses_dir, out_ses_dir)
             else:
-                print('Warning: Subject/session directory already exists in dataset.')
+                print('Warning: Subject/session directory '
+                      'already exists in dataset.')
         else:
             print('Warning: Subject directory already exists in dataset.')
 
-        if ses is not None:
-            sub_scans_df = pd.read_csv(
-                op.join(
-                    out_sub_dir,
-                    'ses-{ses}/sub-{sub}_ses-{ses}_scans.tsv'.format(sub=sub, ses=ses)),
-                sep='\t')
-        else:
-            sub_scans_df = pd.read_csv(
-                op.join(
-                    out_sub_dir,
-                    'sub-{sub}_scans.tsv'.format(sub=sub)),
-                sep='\t')
+        scans_path = 'sub-{sub}_scans.tsv'.format(sub=sub)
+        if ses:
+            scans_path = 'ses-{ses}/sub-{sub}_ses-{ses}_scans.tsv'.format(
+                sub=sub, ses=ses)
+        sub_scans_df = pd.read_csv(
+            op.join(out_sub_dir, scans_path),
+            sep='\t')
 
         # append scans.tsv file with remove and annot fields
         sub_scans_df['remove'] = 0
         sub_scans_df['annotation'] = ''
 
         # import master scans file
-        master_scans_file = op.join(op.dirname(bids_dir),
-                                    'code/{}_scans.tsv'.format(config_options['project']))
+        master_scans_file = op.join(
+            op.dirname(bids_dir),
+            'code/{}_scans.tsv'.format(config_options['project']))
         if op.isfile(master_scans_file):
             master_scans_df = pd.read_csv(master_scans_file, sep='\t')
             master_df_headers = list(master_scans_df)
@@ -237,11 +238,15 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
                                    columns=master_df_headers)
         else:
             tmp_df_headers = list(sub_scans_df)
-            sub_scans_df.to_csv(master_scans_file, sep='\t', index=False, columns=tmp_df_headers)
+            sub_scans_df.to_csv(
+                master_scans_file, sep='\t',
+                index=False, columns=tmp_df_headers)
 
         # Run MRIQC
         if not op.isdir(op.join(work_dir, 'templateflow')):
-            shutil.copytree('/home/data/cis/templateflow', op.join(work_dir, 'templateflow'))
+            shutil.copytree(
+                '/home/data/cis/templateflow',
+                op.join(work_dir, 'templateflow'))
 
         username = getpass.getuser()
         if not op.isdir(op.join('/home', username, '.cache/templateflow')):
@@ -254,10 +259,10 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
             os.makedirs(op.join(out_deriv_dir, 'logs'))
 
         # Run MRIQC anat
-        for tmp_mod in config_options['mriqc_options']['anat']['mod'].keys():
+        mriqc_anat_modality = config_options['mriqc_options']['anat']['mod']
+        for tmp_mod in mriqc_anat_modality.keys():
             kwarg_str = ''
-            settings_dict = config_options['mriqc_options']['anat']['mod'][
-                tmp_mod]['mriqc_settings']
+            settings_dict = mriqc_anat_modality[tmp_mod]['mriqc_settings']
             for field in settings_dict.keys():
                 if isinstance(settings_dict[field], list):
                     val = ' '.join(settings_dict[field])
@@ -272,41 +277,36 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
                    '-m {mod} '
                    '-w {work} --n_procs {n_procs} '
                    '{kwarg_str}'.format(
-                        templateflowdir=op.join(work_dir, 'templateflow'),
-                        sing=scratch_mriqc,
-                        bids=scratch_bids_dir,
-                        out=scratch_deriv_dir,
-                        mod=tmp_mod,
-                        work=mriqc_work_dir,
-                        n_procs=n_procs,
-                        kwarg_str=kwarg_str))
+                       templateflowdir=op.join(work_dir, 'templateflow'),
+                       sing=scratch_mriqc,
+                       bids=scratch_bids_dir,
+                       out=scratch_deriv_dir,
+                       mod=tmp_mod,
+                       work=mriqc_work_dir,
+                       n_procs=n_procs,
+                       kwarg_str=kwarg_str))
             run(cmd)
 
-        # Run MRIQC func
-        for tmp_task in config_options['mriqc_options']['func']['task'].keys():
-            if ses is not None:
-                task_json_file = op.join(
-                    scratch_bids_dir,
+        mriqc_tasks = config_options['mriqc_options']['func']['task']
+        for tmp_task in mriqc_tasks.keys():
+            run_mriqc = False
+            task_json_fname = (
+                'sub-{sub}/func/sub-{sub}_task-{task}_run-01_bold.'
+                'json'.format(sub=sub, task=tmp_task))
+            if ses:
+                task_json_fname = (
                     'sub-{sub}/ses-{ses}/func/sub-{sub}_ses-{ses}_'
-                    'task-{task}_run-01_bold.json'.format(sub=sub, ses=ses, task=tmp_task))
-                if op.isfile(task_json_file):
-                    run_mriqc = True
-                else:
-                    run_mriqc = False
-            else:
-                task_json_file = op.join(
-                    scratch_bids_dir,
-                    'sub-{sub}/func/sub-{sub}_task-{task}_run-01_bold.'
-                    'json'.format(sub=sub, task=tmp_task))
-                if op.isfile(task_json_file):
-                    run_mriqc = True
-                else:
-                    run_mriqc = False
+                    'task-{task}_run-01_bold.json'.format(
+                        sub=sub, ses=ses, task=tmp_task))
+            task_json_file = op.join(
+                scratch_bids_dir,
+                task_json_fname)
+            if op.isfile(task_json_file):
+                run_mriqc = True
 
             if run_mriqc:
                 kwarg_str = ''
-                settings_dict = config_options['mriqc_options']['func']['task'][
-                    tmp_task]['mriqc_settings']
+                settings_dict = mriqc_tasks[tmp_task]['mriqc_settings']
                 for field in settings_dict.keys():
                     if isinstance(settings_dict[field], list):
                         val = ' '.join(settings_dict[field])
@@ -321,14 +321,14 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
                        '--task-id {task} -m bold '
                        '-w {work} --n_procs {n_procs} --correct-slice-timing '
                        '{kwarg_str}'.format(
-                            templateflowdir=op.join(work_dir, 'templateflow'),
-                            sing=scratch_mriqc,
-                            bids=scratch_bids_dir,
-                            out=scratch_deriv_dir,
-                            task=tmp_task,
-                            work=mriqc_work_dir,
-                            n_procs=n_procs,
-                            kwarg_str=kwarg_str))
+                           templateflowdir=op.join(work_dir, 'templateflow'),
+                           sing=scratch_mriqc,
+                           bids=scratch_bids_dir,
+                           out=scratch_deriv_dir,
+                           task=tmp_task,
+                           work=mriqc_work_dir,
+                           n_procs=n_procs,
+                           kwarg_str=kwarg_str))
                 run(cmd)
 
         # Merge MRIQC results into final derivatives folder

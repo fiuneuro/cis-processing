@@ -1,6 +1,4 @@
-"""
-Run a protocol check.
-"""
+"""Run a protocol check."""
 import os
 import os.path as op
 import json
@@ -30,7 +28,8 @@ def main(work_dir, bids_dir, sub, ses=None):
         raise ValueError('Argument "bids_dir" must be an existing directory.')
 
     config_file = op.join(op.dirname(bids_dir), 'code/config.json')
-    message_file = op.join(work_dir, '{sub}-{ses}-protocol_error.txt'.format(sub=sub, ses=ses))
+    message_file = op.join(
+        work_dir, '{sub}-{ses}-protocol_error.txt'.format(sub=sub, ses=ses))
 
     with open(config_file, 'r') as fo:
         config_options = json.load(fo)
@@ -41,11 +40,12 @@ def main(work_dir, bids_dir, sub, ses=None):
 
     # Additional checks
     if not op.isdir(op.join(work_dir, sub)):
-        raise ValueError('Subject directory does not exist in working directory.')
+        raise ValueError('Subject directory does not exist '
+                         'in working directory.')
 
     if not op.isdir(op.join(work_dir, sub, ses)):
-        raise ValueError('Session directory does not exist in subjects working '
-                         'directory.')
+        raise ValueError('Session directory does not exist in subjects '
+                         'working directory.')
 
     with open(protocol_file, 'r') as fo:
         protocol_options = json.load(fo)
@@ -61,7 +61,8 @@ def main(work_dir, bids_dir, sub, ses=None):
             ignore_names = ['PMU', 'setter']
             tmp_scan_list = []
             for tmp in scan_list:
-                if (tmp_scan in tmp) and all([igname not in tmp for igname in ignore_names]):
+                if ((tmp_scan in tmp)
+                   and all([igname not in tmp for igname in ignore_names])):
                     tmp_scan_list.append(tmp)
 
             if len(tmp_scan_list) != num:
@@ -71,22 +72,24 @@ def main(work_dir, bids_dir, sub, ses=None):
                              '\n'.format(len(tmp_scan_list), tmp_scan, num))
 
             for t in tmp_scan_list:
-                dicom_dir = op.join(work_dir, sub, ses, t, 'resources/DICOM/files')
+                dicom_dir = op.join(
+                    work_dir, sub, ses, t, 'resources/DICOM/files')
                 n_dicoms_found = len(os.listdir(dicom_dir))
                 if n_dicoms_found != n_dicoms_required:
                     warning = True
                     with open(message_file, 'a') as fo:
                         fo.write('There are {0} DICOMs for {1}, but should be '
-                                 '{2}\n'.format(n_dicoms_found, t, n_dicoms_required))
+                                 '{2}\n'.format(n_dicoms_found,
+                                                t, n_dicoms_required))
 
     if warning:
-        cmd = ("mail -s '{proj} Protocol Check Warning {sub} {ses}' {email_list} "
-               "< {message}".format(
-                    proj=protocol_options['project'],
-                    sub=sub,
-                    ses=ses,
-                    email_list=protocol_options['email'],
-                    message=message_file))
+        cmd = ("mail -s '{proj} Protocol Check Warning {sub} {ses}' "
+               "{email_list} < {message}".format(
+                   proj=protocol_options['project'],
+                   sub=sub,
+                   ses=ses,
+                   email_list=protocol_options['email'],
+                   message=message_file))
         os.system(cmd)
         os.remove(message_file)
 
