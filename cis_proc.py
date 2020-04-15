@@ -5,13 +5,13 @@ import os.path as op
 import re
 import json
 import shutil
-from glob import glob
 import getpass
 
 import argparse
-import pandas as pd
 
 from utils import run
+from dataset import merge_datasets
+from mriqc import run_mriqc, merge_mriqc_derivatives
 
 
 def _get_parser():
@@ -162,209 +162,57 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
 
     # Check if BIDSification ran successfully
     bids_successful = False
-    with open(op.join(scan_work_dir, 'bids', 'validator.txt'), 'r') as fo:
+    with open(op.join(scratch_bids_dir, 'validator.txt'), 'r') as fo:
         validator_result = fo.read()
 
     if "This dataset appears to be BIDS compatible" in validator_result:
         bids_successful = True
     os.remove(op.join(scan_work_dir, 'bids', 'validator.txt'))
 
-    if bids_successful:
-        # Merge BIDS dataset into final folder
-        dset_files = ['CHANGES', 'README', 'dataset_description.json',
-                      'participants.tsv']
-        for dset_file in dset_files:
-            if not op.isfile(op.join(bids_dir, dset_file)):
-                shutil.copyfile(op.join(scan_work_dir, 'bids', dset_file),
-                                op.join(bids_dir, dset_file))
+    if not bids_successful:
+        raise RuntimeError('Heudiconv-generated dataset failed BIDS validator. '
+                           'Not running MRIQC')
 
-        new_participants_df = pd.read_csv(
-            op.join(scan_work_dir, 'bids/participants.tsv'),
-            sep='\t').T.drop_duplicates().T
-        orig_participants_df = pd.read_csv(
-            op.join(bids_dir, 'participants.tsv'),
-            sep='\t').T.drop_duplicates().T
+    # Run MRIQC
+    if not op.isdir(op.join(work_dir, 'templateflow')):
+        shutil.copytree(
+            '/home/data/cis/templateflow',
+            op.join(work_dir, 'templateflow'))
 
-        # Check if row already in participants file
-        matches = new_participants_df[
-            (new_participants_df == orig_participants_df.loc[0]).all(axis=1)
-        ]
-        match = matches.index.values.size
-        if not match:
-            new_participants_df = pd.concat(
-                [new_participants_df, orig_participants_df])
-            new_participants_df.to_csv(
-                op.join(bids_dir, 'participants.tsv'),
-                sep='\t', index=False)
-        else:
-            print('Subject/session already found in participants.tsv')
+    username = getpass.getuser()
+    if not op.isdir(op.join('/home', username, '.cache/templateflow')):
+        os.makedirs(op.join('/home', username, '.cache/templateflow'))
 
-        scratch_sub_dir = op.join(scan_work_dir, 'bids/sub-{0}'.format(sub))
-        out_sub_dir = op.join(bids_dir, 'sub-{0}'.format(sub))
-        if not op.isdir(out_sub_dir):
-            shutil.copytree(scratch_sub_dir, out_sub_dir)
-        elif ses is not None:
-            scratch_ses_dir = op.join(scratch_sub_dir, 'ses-{0}'.format(ses))
-            out_ses_dir = op.join(out_sub_dir, 'ses-{0}'.format(ses))
-            if not op.isdir(out_ses_dir):
-                shutil.copytree(scratch_ses_dir, out_ses_dir)
-            else:
-                print('Warning: Subject/session directory '
-                      'already exists in dataset.')
-        else:
-            print('Warning: Subject directory already exists in dataset.')
+    if not op.isdir(out_deriv_dir):
+        os.makedirs(out_deriv_dir)
 
-        scans_path = 'sub-{sub}_scans.tsv'.format(sub=sub)
-        if ses:
-            scans_path = 'ses-{ses}/sub-{sub}_ses-{ses}_scans.tsv'.format(
-                sub=sub, ses=ses)
-        sub_scans_df = pd.read_csv(
-            op.join(out_sub_dir, scans_path),
-            sep='\t')
+    if not op.isdir(op.join(out_deriv_dir, 'logs')):
+        os.makedirs(op.join(out_deriv_dir, 'logs'))
 
-        # append scans.tsv file with remove and annot fields
-        sub_scans_df['remove'] = 0
-        sub_scans_df['annotation'] = ''
+    # If BIDSification was successful, merge new files into full BIDS dataset
+    merge_datasets(scratch_bids_dir, bids_dir, config_options['project'], sub, ses)
 
-        # import master scans file
-        master_scans_file = op.join(
-            op.dirname(bids_dir),
-            'code/{}_scans.tsv'.format(config_options['project']))
-        if op.isfile(master_scans_file):
-            master_scans_df = pd.read_csv(master_scans_file, sep='\t')
-            master_df_headers = list(master_scans_df)
-            master_scans_df = master_scans_df.append(sub_scans_df)
-            master_scans_df.to_csv(master_scans_file, sep='\t', index=False,
-                                   columns=master_df_headers)
-        else:
-            tmp_df_headers = list(sub_scans_df)
-            sub_scans_df.to_csv(
-                master_scans_file, sep='\t',
-                index=False, columns=tmp_df_headers)
+    # MRIQC time
+    if not op.isdir(out_deriv_dir):
+        os.makedirs(out_deriv_dir)
 
-        # Run MRIQC
-        if not op.isdir(op.join(work_dir, 'templateflow')):
-            shutil.copytree(
-                '/home/data/cis/templateflow',
-                op.join(work_dir, 'templateflow'))
+    if not op.isdir(op.join(out_deriv_dir, 'logs')):
+        os.makedirs(op.join(out_deriv_dir, 'logs'))
 
-        username = getpass.getuser()
-        if not op.isdir(op.join('/home', username, '.cache/templateflow')):
-            os.makedirs(op.join('/home', username, '.cache/templateflow'))
+    if not op.isdir(op.join(work_dir, 'templateflow')):
+        shutil.copytree('/home/data/cis/templateflow', op.join(work_dir, 'templateflow'))
 
-        if not op.isdir(out_deriv_dir):
-            os.makedirs(out_deriv_dir)
+    username = getpass.getuser()
+    templateflow_dir = op.join('/home', username, '.cache/templateflow')
+    if not op.isdir(templateflow_dir):
+        os.makedirs(templateflow_dir)
 
-        if not op.isdir(op.join(out_deriv_dir, 'logs')):
-            os.makedirs(op.join(out_deriv_dir, 'logs'))
+    run_mriqc(bids_dir, templateflow_dir, scratch_mriqc, mriqc_work_dir,
+              scratch_deriv_dir, config_options, sub=None, ses=None, n_procs=1)
+    merge_mriqc_derivatives(scratch_deriv_dir, out_deriv_dir)
 
-        # Run MRIQC anat
-        mriqc_anat_modality = config_options['mriqc_options']['anat']['mod']
-        for tmp_mod in mriqc_anat_modality.keys():
-            kwarg_str = ''
-            settings_dict = mriqc_anat_modality[tmp_mod]['mriqc_settings']
-            for field in settings_dict.keys():
-                if isinstance(settings_dict[field], list):
-                    val = ' '.join(settings_dict[field])
-                else:
-                    val = settings_dict[field]
-                kwarg_str += '--{0} {1} '.format(field, val)
-            kwarg_str = kwarg_str.rstrip()
-            cmd = ('singularity run --cleanenv '
-                   '-B {templateflowdir}:$HOME/.cache/templateflow '
-                   '{sing} {bids} {out} participant '
-                   '--no-sub --verbose-reports '
-                   '-m {mod} '
-                   '-w {work} --n_procs {n_procs} '
-                   '{kwarg_str}'.format(
-                       templateflowdir=op.join(work_dir, 'templateflow'),
-                       sing=scratch_mriqc,
-                       bids=scratch_bids_dir,
-                       out=scratch_deriv_dir,
-                       mod=tmp_mod,
-                       work=mriqc_work_dir,
-                       n_procs=n_procs,
-                       kwarg_str=kwarg_str))
-            run(cmd)
-
-        mriqc_tasks = config_options['mriqc_options']['func']['task']
-        for tmp_task in mriqc_tasks.keys():
-            run_mriqc = False
-            task_json_fname = (
-                'sub-{sub}/func/sub-{sub}_task-{task}_run-01_bold.'
-                'json'.format(sub=sub, task=tmp_task))
-            if ses:
-                task_json_fname = (
-                    'sub-{sub}/ses-{ses}/func/sub-{sub}_ses-{ses}_'
-                    'task-{task}_run-01_bold.json'.format(
-                        sub=sub, ses=ses, task=tmp_task))
-            task_json_file = op.join(
-                scratch_bids_dir,
-                task_json_fname)
-            if op.isfile(task_json_file):
-                run_mriqc = True
-
-            if run_mriqc:
-                kwarg_str = ''
-                settings_dict = mriqc_tasks[tmp_task]['mriqc_settings']
-                for field in settings_dict.keys():
-                    if isinstance(settings_dict[field], list):
-                        val = ' '.join(settings_dict[field])
-                    else:
-                        val = settings_dict[field]
-                    kwarg_str += '--{0} {1} '.format(field, val)
-                kwarg_str = kwarg_str.rstrip()
-                cmd = ('singularity run --cleanenv '
-                       '-B {templateflowdir}:$HOME/.cache/templateflow '
-                       '{sing} {bids} {out} participant '
-                       '--no-sub --verbose-reports '
-                       '--task-id {task} -m bold '
-                       '-w {work} --n_procs {n_procs} --correct-slice-timing '
-                       '{kwarg_str}'.format(
-                           templateflowdir=op.join(work_dir, 'templateflow'),
-                           sing=scratch_mriqc,
-                           bids=scratch_bids_dir,
-                           out=scratch_deriv_dir,
-                           task=tmp_task,
-                           work=mriqc_work_dir,
-                           n_procs=n_procs,
-                           kwarg_str=kwarg_str))
-                run(cmd)
-
-        # Merge MRIQC results into final derivatives folder
-        reports = glob(op.join(scratch_deriv_dir, '*.html'))
-        reports = [f for f in reports if 'group_' not in op.basename(f)]
-        for report in reports:
-            shutil.copy(report, op.join(out_deriv_dir, op.basename(report)))
-
-        logs = glob(op.join(scratch_deriv_dir, 'logs/*'))
-        for log in logs:
-            shutil.copy(log, op.join(out_deriv_dir, 'logs', op.basename(log)))
-
-        derivatives = glob(op.join(scratch_deriv_dir, 'sub-*'))
-        derivatives = [x for x in derivatives if '.html' not in op.basename(x)]
-        for derivative in derivatives:
-            shutil.copytree(
-                derivative,
-                op.join(out_deriv_dir, op.basename(derivative))
-            )
-
-        csv_files = glob(op.join(scratch_deriv_dir, '*.csv'))
-        for csv_file in csv_files:
-            out_file = op.join(out_deriv_dir, op.basename(csv_file))
-            if not op.isfile(out_file):
-                shutil.copyfile(csv_file, out_file)
-            else:
-                new_df = pd.read_csv(csv_file)
-                old_df = pd.read_csv(out_file)
-                out_df = pd.concat((old_df, new_df))
-                out_df.to_csv(out_file, index=False)
-
-        # Finally, clean up working directory *if successful*
-        shutil.rmtree(scan_work_dir)
-    else:
-        print('Heudiconv-generated dataset failed BIDS validator. '
-              'Not running MRIQC')
+    # Finally, clean up working directory *if successful*
+    shutil.rmtree(scan_work_dir)
 
 
 def _main(argv=None):
