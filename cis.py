@@ -126,7 +126,7 @@ def main(bids_dir, config, work_dir=None,
         op.join(
             proj_work_dir,
             '{0}-processed.txt'.format(config_options['project'])),
-        index=False)
+        sep='\t', line_terminator='\n', index=False)
 
     # Copy singularity images to scratch
     scratch_xnatdownload = op.join(work_dir, op.basename(xnatdownload_file))
@@ -214,7 +214,8 @@ def main(bids_dir, config, work_dir=None,
                     timedateobj, "%m/%d/%Y, %H:%M")
                 scans_df = scans_df.append(tmp_df)
                 scans_df.to_csv(
-                    op.join(raw_dir, 'scans.tsv'), sep='\t', index=False)
+                    op.join(raw_dir, 'scans.tsv'), sep='\t',
+                    line_terminator='\n', index=False)
 
                 # run cis_proc.py
                 err_file = op.join(

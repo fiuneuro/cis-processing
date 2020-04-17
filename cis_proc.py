@@ -105,14 +105,19 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     out_deriv_dir = op.join(bids_dir,
                             'derivatives/mriqc-{0}'.format(mriqc_version))
 
-    # Additional checks and copying for heuristics file
-    heuristics_file = config_options['heuristics']
-    if not heuristics_file.startswith('/'):
-        heuristics_file = op.join(op.dirname(bids_dir), heuristics_file)
+    # Additional checks and copying for heuristic file
+    heuristic = config_options['heuristic']
 
-    if not op.isfile(heuristics_file):
-        raise ValueError('Heuristics file specified in config files must be '
-                         'an existing file.')
+    # Heuristic may be file (absolute or relative path) or heudiconv builtin
+    # Use existence of file extension to determine if builtin or file
+    if op.splitext(heuristic)[1]:
+        if not heuristic.startswith('/'):
+            heuristic = op.join(op.dirname(bids_dir), heuristic)
+
+        if not op.isfile(heuristic):
+            raise ValueError('Heuristic file specified in config files must be '
+                             'an existing file.')
+
     if not op.isfile(bidsifier_file):
         raise ValueError('BIDSifier image specified in config files must be '
                          'an existing file.')
@@ -127,7 +132,8 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     if not op.isdir(bids_dir):
         os.makedirs(bids_dir)
 
-    shutil.copyfile(heuristics_file, op.join(scan_work_dir, 'heuristics.py'))
+    scratch_heuristic = op.join(scan_work_dir, 'heuristic.py')
+    shutil.copyfile(heuristic, scratch_heuristic)
 
     # Copy singularity images to scratch
     scratch_bidsifier = op.join(scan_work_dir, op.basename(bidsifier_file))
@@ -153,10 +159,10 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     shutil.copyfile(tar_file, work_tar_file)
 
     # Run BIDSifier
-    cmd = ('{sing} -d {work} --heuristics {heur} --sub {sub} '
+    cmd = ('{sing} -d {work} --heuristic {heur} --sub {sub} '
            '--ses {ses} -o {outdir}'.format(
                sing=scratch_bidsifier, work=work_tar_file,
-               heur=op.join(scan_work_dir, 'heuristics.py'),
+               heur=scratch_heuristic,
                sub=sub, ses=ses, outdir=op.join(scan_work_dir, 'bids')))
     run(cmd)
 

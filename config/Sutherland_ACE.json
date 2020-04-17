@@ -4,7 +4,7 @@
     "xnatdownload": "xnat_download_v0.0.3-2019-04-11-7651e03ddbc7.img",
     "protocol": "code/protocol.json",
     "bidsifier": "cis_bidsify_v0.0.1-2018-08-24-04f91fa82d17.img",
-    "heuristics": "code/heuristics.py",
+    "heuristic": "code/heuristic.py",
     "mriqc": "poldracklab_mriqc_0.10.4-2018-03-23-8fb5f5e9184f.img",
     "mriqc_options": {
         "anat": {

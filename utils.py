@@ -46,4 +46,4 @@ def clean_csv(in_file):
 
     df = pd.read_csv(in_file)
     df = df.fillna(0)
-    df.to_csv(out_file, index=False)
+    df.to_csv(out_file, line_terminator='\n', index=False)

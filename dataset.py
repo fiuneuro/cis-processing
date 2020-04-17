@@ -30,7 +30,7 @@ def merge_datasets(scratch_bids_dir, bids_dir, project_name, sub, ses=None):
             [new_participants_df, orig_participants_df])
         new_participants_df.to_csv(
             op.join(bids_dir, 'participants.tsv'),
-            sep='\t', index=False)
+            sep='\t', line_terminator='\n', index=False)
     else:
         print('Subject/session already found in participants.tsv')
 
@@ -69,10 +69,11 @@ def merge_datasets(scratch_bids_dir, bids_dir, project_name, sub, ses=None):
         master_scans_df = pd.read_csv(master_scans_file, sep='\t')
         master_df_headers = list(master_scans_df)
         master_scans_df = master_scans_df.append(sub_scans_df)
-        master_scans_df.to_csv(master_scans_file, sep='\t', index=False,
+        master_scans_df.to_csv(master_scans_file, sep='\t',
+                               line_terminator='\n', index=False,
                                columns=master_df_headers)
     else:
         tmp_df_headers = list(sub_scans_df)
         sub_scans_df.to_csv(
-            master_scans_file, sep='\t',
+            master_scans_file, sep='\t', line_terminator='\n',
             index=False, columns=tmp_df_headers)

@@ -1,7 +1,7 @@
 {
     "project": "Mattfeld_RTV",
     "bidsifier": "cis_bidsify_v0.0.1-2018-08-24-04f91fa82d17.img",
-    "heuristics": "heuristics/Mattfeld_RTV.py",
+    "heuristic": "heuristics/Mattfeld_RTV.py",
     "mriqc": "poldracklab_mriqc_0.10.4-2018-03-23-8fb5f5e9184f.img",
     "mriqc_settings": {
         "fd_thres": 0.5
