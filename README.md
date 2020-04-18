@@ -3,7 +3,7 @@ Automated transfer, conversion, and processing of data acquired at the FIU
 Center for Imaging Science.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![CircleCI](https://circleci.com/gh/FIU-Neuro/cis-processing.svg?style=shield)](https://circleci.com/gh/FIU-Neuro/cis-processing/tree/master)
+[![CircleCI](https://circleci.com/gh/fiuneuro/cis-processing.svg?style=shield)](https://circleci.com/gh/fiuneuro/cis-processing/tree/master)
 
 ## Why we built this tool
 We wanted to make it easier for researchers in our department to convert their
