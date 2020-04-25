@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
-"""A wrapper around cis_proc.py and cis-xget."""
+"""A wrapper around conversion_workflow.py and cis-xget.
+
+This workflow does the following:
+1. Copy XNAT downloader Singularity image to scratch.
+2. Download tarfile using XNAT downloader.
+3. Run protocol check on downloaded data.
+4. Email project-related personnel warnings about missing data based on protocol check.
+5. Submit conversion_workflow as a job.
+6. Email project-related personnel update about downloaded/converted data.
+
+Because the workflow downloads data from XNAT (which requires internet access),
+it cannot be called within a SLURM job, as none of the processing nodes have
+internet access. The workflow is thus called on the login or visualization
+nodes, but submits the conversion_workflow step as a job to the processing
+nodes.
+"""
 import os
 import os.path as op
 import json
@@ -15,7 +30,7 @@ from utils import run
 
 def _get_parser():
     parser = argparse.ArgumentParser(
-        description='Initiate XNAT download and CIS proc.')
+        description='Initiate XNAT download and conversion workflow.')
     parser.add_argument(
         '-b', '--bidsdir',
         required=True,
@@ -90,8 +105,8 @@ def main(bids_dir, config, work_dir=None,
         config_options = json.load(fo)
 
     if 'project' not in config_options.keys():
-        raise Exception('Config File must be updated with project field'
-                        'See Sample Config File for More information')
+        raise Exception('Config file must be updated with project field. '
+                        'See sample config file for more information')
 
     proj_work_dir = op.join(work_dir, config_options['project'])
     if not proj_work_dir.startswith('/scratch'):
@@ -217,20 +232,20 @@ def main(bids_dir, config, work_dir=None,
                     op.join(raw_dir, 'scans.tsv'), sep='\t',
                     line_terminator='\n', index=False)
 
-                # run cis_proc.py
+                # run conversion_workflow.py
                 err_file = op.join(
                     proj_dir,
-                    'code/err/cis_proc-{0}-{1}'.format(tmp_sub, tmp_ses)
+                    'code/err/convert-{0}-{1}'.format(tmp_sub, tmp_ses)
                 )
                 out_file = op.join(
                     proj_dir,
-                    'code/out/cis_proc-{0}-{1}'.format(tmp_sub, tmp_ses)
+                    'code/out/convert-{0}-{1}'.format(tmp_sub, tmp_ses)
                 )
-                cmd = ('sbatch -J cis_proc-{proj}-{sub}-{ses} '
+                cmd = ('sbatch -J convert-{proj}-{sub}-{ses} '
                        '-e {err_file_loc} -o {out_file_loc} '
                        '-c {nprocs} --qos {hpc_queue} --account {hpc_acct} '
                        '-p centos7 '
-                       '--wrap="python {fdir}/cis_proc.py -t {tarfile} '
+                       '--wrap="python {fdir}/conversion_workflow.py -t {tarfile} '
                        '-b {bidsdir} -w {work} --config {config} '
                        '--sub {sub} --ses {ses} --n_procs {nprocs}"'.format(
                            fdir=fdir,

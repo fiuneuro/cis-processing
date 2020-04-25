@@ -20,8 +20,9 @@ their own. Here is a list, in no particular order:
     all files must be copied to `/scratch` for processing. While processing nodes
     used by the SLURM scheduler can access both `/scratch` and `/data`,
     Singularity images can only access `/scratch`, so we need a wrapper script
-    will copy files to `/scratch` before conversion and then copy results back
-    to `/data` after the job has finished.
+    to copy files to `/scratch` before conversion and then copy results back
+    to `/data` after the job has finished (as well as merge the results into
+    the existing BIDS dataset).
   - MRIQC IQMs across projects are compiled into a single database to track scan
     quality at the FIU MRI over time and to identify scanner-specific outliers in
     IQMs in order to flag bad runs/subjects.
@@ -32,11 +33,20 @@ their own. Here is a list, in no particular order:
   - Datasets should be anonymized (including removal of PHI from metadata and
     defacing of anatomical scans) to make it easier to share data later on.
 
+## Workflows
+There are two workflows available in this repository.
+- `conversion_workflow.py`: This is the main workflow of the package.
+  Most of the documentation pertains to this workflow.
+- `pull_dicoms_workflow.py`: This workflow (1) downloads DICOMs from XNAT,
+  (2) runs an optional "protocol check", and (3) calls `conversion_workflow`.
+  This workflow *cannot* be submitted as a job, as it requires internet access.
+
 ## Usage
 If you would like to use the cis-processing pipeline, you'll first need to do a couple of things:
 1. Create a [heudiconv](https://github.com/nipy/heudiconv) heuristic file for your project.
     - This file specifies how the dicom converter will select, convert, and rename scans to match BIDS format. In order to avoid converting incomplete or incorrect scans, the heuristic file allows you to check things like the number of slices, the number of volumes, and the name for each scan.
     - Heuristic files for several projects are included in this repository, in the [heuristics](https://github.com/FIU-Neuro/cis-processing/tree/master/heuristics) folder. You do not need to upload your heuristic file to the repository, although if you don't then that will need to be reflected in the project's config file.
+    - Alternatively, you can use one of the existing heuristics provided by heudiconv. These heuristics require that your protocol follow specific naming conventions, so this should be considered at the experimental design stage.
 2. Create a config file for your project.
     - This file specifies a number of important things, including:
         - The location and name of your heuristic file. **If you don't want to upload your heuristic file to this repository, make sure to include the full path to the heuristic file in the config file.**
@@ -46,7 +56,7 @@ If you would like to use the cis-processing pipeline, you'll first need to do a 
 3. Optional: Upload your config and heuristic files to this repository.
     - You can open a pull request with the uploaded files from your fork to this repository, and one of the maintainers of the repository will review and merge your changes.
 4. Create a job file for the HPC.
-    - You can use the provided [template job](https://github.com/FIU-Neuro/cis-processing/blob/master/example_slurm_job.sh) as a basis for your own.
+    - You can use the provided [template job](https://github.com/fiuneuro/cis-processing/blob/master/examples/example_slurm_job.sh) as a basis for your own.
     - Remember that the DICOM tar file input (`-t` or `--tarfile`) should *just* contain the scan-specific folders to be converted (e.g., `1-localizer`, `2-MPRAGE`, etc.). This generally comes from a folder called `scans/` and is subject- and session-specific.
 5. Submit your job.
 
@@ -54,13 +64,13 @@ If you would like to use the cis-processing pipeline, you'll first need to do a 
 If you identify a bug, need help getting started, or would like to request new features, please first check that a similar issue does not already exist. If one doesn't, please feel free to [open an issue](https://github.com/FIU-Neuro/cis-processing/issues) in this repository detailing your error/question/request and the project maintainers will attempt to help.
 
 ## Relationship to other DICOM conversion tools
-- [cis-xget](https://github.com/FIU-Neuro/cis-xget):
-  The cis-xget package acts as a sub-workflow for `cis-processing`.
+- [cis-xget](https://github.com/fiuneuro/cis-xget):
+  The cis-xget package acts as a sub-workflow for `pull_dicoms_workflow.py`.
   cis-xget downloads new scans from XNAT automatically.
   Because it requires additional dependencies, cis-xget is built as a
   Singularity image, which in turn is called within cis-processing.
-- [cis-bidsify](https://github.com/FIU-Neuro/cis-bidsify):
-  This package acts as an additional sub-workflow for `cis-processing`.
+- [cis-bidsify](https://github.com/fiuneuro/cis-bidsify):
+  This package acts as an additional sub-workflow for `conversion_workflow.py`.
   cis-bidsify uses heudiconv and pybids to convert the DICOMs downloaded by
   `cis-xget` into BIDS format, and then to perform some light anonymization and
   metadata completion.
@@ -68,7 +78,8 @@ If you identify a bug, need help getting started, or would like to request new f
   cis-processing.
 - [Heudiconv](https://heudiconv.readthedocs.io):
   We use heudiconv to perform the conversion from raw DICOMs to BIDS dataset.
-  Users must provide a valid heudiconv heuristic file to `cis-processing`.
+  Users must provide a valid heudiconv heuristic file to
+  `conversion_workflow.py`.
 - [ReproIn](https://github.com/ReproNim/reproin):
   ReproIn serves as a standard for organizing and labeling your protocols at
   the scanner. By following this standard at acquisition, you can use the

@@ -15,9 +15,31 @@ import pandas as pd
 from utils import run
 
 
-def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity_image, work_dir,
+def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
               out_dir, config_options, sub=None, ses=None, n_procs=1):
-    """Run MRIQC"""
+    """Run MRIQC.
+
+    Parameters
+    ----------
+    bids_dir : str
+        Path to BIDS dataset.
+    templateflow_dir : str
+        Path to templateflow directory.
+    mriqc_singularity : str
+        Singularity image for MRIQC.
+    work_dir : str
+        Working directory.
+    out_dir : str
+        Output directory for MRIQC derivatives.
+    config_options : dict
+        Nested dictionary containing configuration information.
+    sub : str or None, optional
+        Subject identifier. Default is None.
+    ses : str or None, optional
+        Session identifier. Default is None.
+    n_procs : int, optional
+        Number of processes for MRIQC job. Default is 1.
+    """
     # Run MRIQC anat
     mriqc_anat_modality = config_options['mriqc_options']['anat']['mod']
     for tmp_mod in mriqc_anat_modality.keys():
@@ -31,14 +53,14 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity_image, work_dir,
             kwarg_str += '--{0} {1} '.format(field, val)
         kwarg_str = kwarg_str.rstrip()
         cmd = ('singularity run --cleanenv '
-               '-B {templateflowdir}:$HOME/.cache/templateflow '
+               '-B {templateflow_dir}:$HOME/.cache/templateflow '
                '{sing} {bids} {out} participant '
                '--no-sub --verbose-reports '
                '-m {mod} '
                '-w {work} --n_procs {n_procs} '
                '{kwarg_str}'.format(
-                   templateflowdir=templateflow_dir,
-                   sing=mriqc_singularity_image,
+                   templateflow_dir=templateflow_dir,
+                   sing=mriqc_singularity,
                    bids=bids_dir,
                    out=out_dir,
                    mod=tmp_mod,
@@ -83,7 +105,7 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity_image, work_dir,
                    '-w {work} --n_procs {n_procs} --correct-slice-timing '
                    '{kwarg_str}'.format(
                        templateflowdir=templateflow_dir,
-                       sing=mriqc_singularity_image,
+                       sing=mriqc_singularity,
                        bids=bids_dir,
                        out=out_dir,
                        task=tmp_task,
@@ -93,28 +115,38 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity_image, work_dir,
             run(cmd)
 
 
-def merge_mriqc_derivatives(scratch_deriv_dir, out_deriv_dir):
-    """Merge MRIQC results into final derivatives folder"""
-    reports = glob(op.join(scratch_deriv_dir, '*.html'))
+def merge_mriqc_derivatives(source_dir, target_dir):
+    """Merge MRIQC results into final derivatives folder.
+
+    Parameters
+    ----------
+    source_dir : str
+        Path to existing MRIQC derivatives folder. Files from source_dir are
+        merged into target_dir.
+    target_dir : str
+        Path to existing MRIQC derivatives folder. Files from source_dir are
+        merged into target_dir.
+    """
+    reports = glob(op.join(source_dir, '*.html'))
     reports = [f for f in reports if 'group_' not in op.basename(f)]
     for report in reports:
-        shutil.copy(report, op.join(out_deriv_dir, op.basename(report)))
+        shutil.copy(report, op.join(target_dir, op.basename(report)))
 
-    logs = glob(op.join(scratch_deriv_dir, 'logs/*'))
+    logs = glob(op.join(source_dir, 'logs/*'))
     for log in logs:
-        shutil.copy(log, op.join(out_deriv_dir, 'logs', op.basename(log)))
+        shutil.copy(log, op.join(target_dir, 'logs', op.basename(log)))
 
-    derivatives = glob(op.join(scratch_deriv_dir, 'sub-*'))
+    derivatives = glob(op.join(source_dir, 'sub-*'))
     derivatives = [x for x in derivatives if '.html' not in op.basename(x)]
     for derivative in derivatives:
         shutil.copytree(
             derivative,
-            op.join(out_deriv_dir, op.basename(derivative))
+            op.join(target_dir, op.basename(derivative))
         )
 
-    csv_files = glob(op.join(scratch_deriv_dir, '*.csv'))
+    csv_files = glob(op.join(source_dir, '*.csv'))
     for csv_file in csv_files:
-        out_file = op.join(out_deriv_dir, op.basename(csv_file))
+        out_file = op.join(target_dir, op.basename(csv_file))
         if not op.isfile(out_file):
             shutil.copyfile(csv_file, out_file)
         else:

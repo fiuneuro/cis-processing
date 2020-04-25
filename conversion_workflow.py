@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""The full cis-processing workflow."""
+"""The full cis-processing workflow.
+
+This workflow does the following:
+1. Copy raw data tarfile to scratch.
+2. Copy necessary Singularity images to scratch.
+3. Run BIDSifier Singularity image on tarfile.
+4. Merge mini BIDS dataset in /scratch into main BIDS dataset in /data.
+5. Run MRIQC Singularity image on new mini-BIDS dataset.
+6. Merge MRIQC derivatives in /scratch into main derivatives folder in /data.
+7. Clean up working directory in /scratch.
+"""
 import os
 import os.path as op
 import re
@@ -61,7 +71,7 @@ def _get_parser():
 
 
 def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
-    """Runtime for cis_proc.py."""
+    """Runtime for conversion_workflow.py."""
     CIS_DIR = '/scratch/cis_dataqc/'
 
     # Check inputs
