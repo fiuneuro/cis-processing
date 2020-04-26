@@ -16,7 +16,7 @@ from utils import run
 
 
 def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
-              out_dir, config_options, sub=None, ses=None, n_procs=1):
+              out_dir, mriqc_config, sub=None, ses=None, n_procs=1):
     """Run MRIQC.
 
     Parameters
@@ -31,7 +31,7 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
         Working directory.
     out_dir : str
         Output directory for MRIQC derivatives.
-    config_options : dict
+    mriqc_config : dict
         Nested dictionary containing configuration information.
     sub : str or None, optional
         Subject identifier. Default is None.
@@ -41,10 +41,10 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
         Number of processes for MRIQC job. Default is 1.
     """
     # Run MRIQC anat
-    mriqc_anat_modality = config_options['mriqc_options']['anat']['mod']
-    for tmp_mod in mriqc_anat_modality.keys():
+    anat_config = mriqc_config['anat']['mod']
+    for modality in anat_config.keys():
         kwarg_str = ''
-        settings_dict = mriqc_anat_modality[tmp_mod]['mriqc_settings']
+        settings_dict = anat_config[modality]['mriqc_settings']
         for field in settings_dict.keys():
             if isinstance(settings_dict[field], list):
                 val = ' '.join(settings_dict[field])
@@ -63,24 +63,24 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
                    sing=mriqc_singularity,
                    bids=bids_dir,
                    out=out_dir,
-                   mod=tmp_mod,
+                   mod=modality,
                    work=work_dir,
                    n_procs=n_procs,
                    kwarg_str=kwarg_str))
         run(cmd)
 
     # Run MRIQC func
-    mriqc_tasks = config_options['mriqc_options']['func']['task']
-    for tmp_task in mriqc_tasks.keys():
+    func_config = mriqc_config['func']['task']
+    for task in func_config.keys():
         run_mriqc = False
         task_json_fname = (
             'sub-{sub}/func/sub-{sub}_task-{task}_run-01_bold.'
-            'json'.format(sub=sub, task=tmp_task))
+            'json'.format(sub=sub, task=task))
         if ses:
             task_json_fname = (
                 'sub-{sub}/ses-{ses}/func/sub-{sub}_ses-{ses}_'
                 'task-{task}_run-01_bold.json'.format(
-                    sub=sub, ses=ses, task=tmp_task))
+                    sub=sub, ses=ses, task=task))
         task_json_file = op.join(
             bids_dir,
             task_json_fname)
@@ -89,7 +89,7 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
 
         if run_mriqc:
             kwarg_str = ''
-            settings_dict = mriqc_tasks[tmp_task]['mriqc_settings']
+            settings_dict = func_config[task]['mriqc_settings']
             for field in settings_dict.keys():
                 if isinstance(settings_dict[field], list):
                     val = ' '.join(settings_dict[field])
@@ -108,7 +108,7 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
                        sing=mriqc_singularity,
                        bids=bids_dir,
                        out=out_dir,
-                       task=tmp_task,
+                       task=task,
                        work=work_dir,
                        n_procs=n_procs,
                        kwarg_str=kwarg_str))
@@ -175,9 +175,9 @@ def mriqc_group(bids_dir, config, work_dir=None, sub=None, ses=None,
         n_procs = int(n_procs)
 
     with open(config, 'r') as fo:
-        config_options = json.load(fo)
+        mriqc_config = json.load(fo)
 
-    if 'project' not in config_options.keys():
+    if 'project' not in mriqc_config.keys():
         raise Exception('Config File must be updated with project field'
                         'See Sample Config File for More information')
 
@@ -185,7 +185,7 @@ def mriqc_group(bids_dir, config, work_dir=None, sub=None, ses=None,
         raise ValueError('Working directory must be in scratch.')
 
     mriqc_file = op.join('/home/data/cis/singularity-images/',
-                         config_options['mriqc'])
+                         mriqc_config['mriqc'])
     mriqc_version = re.search(r'_([\d.]+)', mriqc_file).group(1)
 
     out_deriv_dir = op.join(bids_dir,
@@ -227,19 +227,19 @@ def mriqc_group(bids_dir, config, work_dir=None, sub=None, ses=None,
     # append the email message
     message_file = op.join(
         work_dir,
-        '{0}-mriqc-message.txt'.format(config_options['project']))
+        '{0}-mriqc-message.txt'.format(mriqc_config['project']))
     with open(message_file, 'a') as fo:
         fo.write('Group quality control report for {proj} prepared on '
                  '{datetime}\n'.format(
-                     proj=config_options['project'],
+                     proj=mriqc_config['project'],
                      datetime=date_time))
 
     cmd = ("mail -s '{proj} MRIQC Group Report' "
            "-a {mriqc_dir}/reports/bold_group.html "
            "-a {mriqc_dir}/reports/T1w_group.html {emails} < {message}".format(
-               proj=config_options['project'],
+               proj=mriqc_config['project'],
                mriqc_dir=out_deriv_dir,
-               emails=config_options['email'],
+               emails=mriqc_config['email'],
                message=message_file))
     run(cmd)
 

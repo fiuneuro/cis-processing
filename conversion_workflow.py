@@ -115,19 +115,6 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     out_deriv_dir = op.join(bids_dir,
                             'derivatives/mriqc-{0}'.format(mriqc_version))
 
-    # Additional checks and copying for heuristic file
-    heuristic = config_options['heuristic']
-
-    # Heuristic may be file (absolute or relative path) or heudiconv builtin
-    # Use existence of file extension to determine if builtin or file
-    if op.splitext(heuristic)[1]:
-        if not heuristic.startswith('/'):
-            heuristic = op.join(op.dirname(bids_dir), heuristic)
-
-        if not op.isfile(heuristic):
-            raise ValueError('Heuristic file specified in config files must be '
-                             'an existing file.')
-
     if not op.isfile(bidsifier_file):
         raise ValueError('BIDSifier image specified in config files must be '
                          'an existing file.')
@@ -142,8 +129,22 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     if not op.isdir(bids_dir):
         os.makedirs(bids_dir)
 
-    scratch_heuristic = op.join(scan_work_dir, 'heuristic.py')
-    shutil.copyfile(heuristic, scratch_heuristic)
+    # Additional checks and copying for heuristic file
+    heuristic = config_options['heuristic']
+
+    # Heuristic may be file (absolute or relative path) or heudiconv builtin
+    # Use existence of file extension to determine if builtin or file
+    if op.splitext(heuristic)[1]:
+        if not heuristic.startswith('/'):
+            heuristic = op.join(op.dirname(bids_dir), heuristic)
+
+        if not op.isfile(heuristic):
+            raise ValueError('Heuristic file specified in config files must be '
+                             'an existing file.')
+        scratch_heuristic = op.join(scan_work_dir, 'heuristic.py')
+        shutil.copyfile(heuristic, scratch_heuristic)
+    else:
+        scratch_heuristic = heuristic
 
     # Copy singularity images to scratch
     scratch_bidsifier = op.join(scan_work_dir, op.basename(bidsifier_file))
@@ -181,29 +182,13 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     with open(op.join(scratch_bids_dir, 'validator.txt'), 'r') as fo:
         validator_result = fo.read()
 
-    if "This dataset appears to be BIDS compatible" in validator_result:
+    if 'This dataset appears to be BIDS compatible' in validator_result:
         bids_successful = True
-    os.remove(op.join(scan_work_dir, 'bids', 'validator.txt'))
+    os.remove(op.join(scratch_bids_dir, 'validator.txt'))
 
     if not bids_successful:
         raise RuntimeError('Heudiconv-generated dataset failed BIDS validator. '
                            'Not running MRIQC')
-
-    # Run MRIQC
-    if not op.isdir(op.join(work_dir, 'templateflow')):
-        shutil.copytree(
-            '/home/data/cis/templateflow',
-            op.join(work_dir, 'templateflow'))
-
-    username = getpass.getuser()
-    if not op.isdir(op.join('/home', username, '.cache/templateflow')):
-        os.makedirs(op.join('/home', username, '.cache/templateflow'))
-
-    if not op.isdir(out_deriv_dir):
-        os.makedirs(out_deriv_dir)
-
-    if not op.isdir(op.join(out_deriv_dir, 'logs')):
-        os.makedirs(op.join(out_deriv_dir, 'logs'))
 
     # If BIDSification was successful, merge new files into full BIDS dataset
     merge_datasets(scratch_bids_dir, bids_dir, config_options['project'], sub, ses)
@@ -224,7 +209,8 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
         os.makedirs(templateflow_dir)
 
     run_mriqc(bids_dir, templateflow_dir, scratch_mriqc, mriqc_work_dir,
-              scratch_deriv_dir, config_options, sub=None, ses=None, n_procs=1)
+              scratch_deriv_dir, config_options['mriqc_settings'],
+              sub=sub, ses=ses, n_procs=n_procs)
     merge_mriqc_derivatives(scratch_deriv_dir, out_deriv_dir)
 
     # Finally, clean up working directory *if successful*
