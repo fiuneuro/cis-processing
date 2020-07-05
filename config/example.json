@@ -1,0 +1,33 @@
+{
+    "project": "Salo_Example",
+    "hpc_queue": "PQ_nbc",
+    "xnatdownload": "xnat_download_v0.0.3-2019-04-11-7651e03ddbc7.img",
+    "protocol": "code/protocol.json",
+    "bidsifier": "cis_bidsify_11172019.sif",
+    "heuristic": "reproin",
+    "mriqc": "poldracklab_mriqc_0.15.1.sif",
+    "mriqc_options": {
+        "anat": {
+            "T1w": {
+            },
+            "T2w": {
+            }
+        },
+        "func": {
+            "nback": {
+                "fd_thres": 0.6,
+                "hmc-fsl": "",
+                "ica": "",
+                "fft-spikes-detector": ""
+            },
+            "rest": {
+                "fd_thres": 0.2,
+                "hmc-fsl": "",
+                "ica": "",
+                "fft-spikes-detector": ""
+            }
+        },
+        "n_procs": 1
+    },
+    "email": "tsalo006@fiu.edu"
+}

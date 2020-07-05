@@ -1,28 +1,28 @@
 {
     "project": "Sutherland_ACE",
     "T1w_MPR_vNav": {
-        "num": 2,
-        "dicoms": 176
+        "n_runs": 2,
+        "n_dicoms": 176
     },
     "fMRI_DistortionMap_PA": {
-        "num": 3,
-        "dicoms": 60
+        "n_runs": 3,
+        "n_dicoms": 60
     },
     "fMRI_DistortionMap_AP": {
-        "num": 3,
-        "dicoms": 60
+        "n_runs": 3,
+        "n_dicoms": 60
     },
     "fMRI_task_MID": {
-        "num": 4,
-        "dicoms": 642
+        "n_runs": 4,
+        "n_dicoms": 642
     },
     "fMRI_rest": {
-        "num": 1,
-        "dicoms": 750
+        "n_runs": 1,
+        "n_dicoms": 750
     },
     "fMRI_task_n_back": {
-        "num": 3,
-        "dicoms": 345
+        "n_runs": 3,
+        "n_dicoms": 345
     },
     "email": "miriedel@fiu.edu masuther@fiu.edu jflan008@fiu.edu nhidmi@fiu.edu"
 }

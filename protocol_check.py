@@ -55,8 +55,8 @@ def main(work_dir, bids_dir, sub, ses=None):
     scan_list = os.listdir(op.join(work_dir, sub, ses))
     for tmp_scan in scans:
         if (tmp_scan != 'email') and (tmp_scan != 'project'):
-            num = protocol_options[tmp_scan]['num']
-            n_dicoms_required = protocol_options[tmp_scan]['dicoms']
+            n_runs_required = protocol_options[tmp_scan]['n_runs']
+            n_dicoms_required = protocol_options[tmp_scan]['n_dicoms']
 
             ignore_names = ['PMU', 'setter']
             tmp_scan_list = []
@@ -65,11 +65,11 @@ def main(work_dir, bids_dir, sub, ses=None):
                    and all([igname not in tmp for igname in ignore_names])):
                     tmp_scan_list.append(tmp)
 
-            if len(tmp_scan_list) != num:
+            if len(tmp_scan_list) != n_runs_required:
                 warning = True
                 with open(message_file, 'a') as fo:
                     fo.write('There are {0} scans for {1}, but should be {2}'
-                             '\n'.format(len(tmp_scan_list), tmp_scan, num))
+                             '\n'.format(len(tmp_scan_list), tmp_scan, n_runs_required))
 
             for t in tmp_scan_list:
                 dicom_dir = op.join(

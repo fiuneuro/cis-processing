@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Compile group-level MRIQC results.
 """
@@ -10,41 +9,43 @@ import shutil
 import datetime
 from glob import glob
 
-import pandas as pd
-
 from utils import run
 
 
 def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
-              out_dir, mriqc_config, sub=None, ses=None, n_procs=1):
+              out_dir, mriqc_config, sub, ses=None):
     """Run MRIQC.
 
     Parameters
     ----------
     bids_dir : str
-        Path to BIDS dataset.
+        Path to BIDS dataset (in data).
+    out_dir : str
+        Output directory for MRIQC derivatives.
+    work_dir : str
+        Working directory (in scratch).
     templateflow_dir : str
         Path to templateflow directory.
     mriqc_singularity : str
         Singularity image for MRIQC.
-    work_dir : str
-        Working directory.
-    out_dir : str
-        Output directory for MRIQC derivatives.
     mriqc_config : dict
         Nested dictionary containing configuration information.
-    sub : str or None, optional
-        Subject identifier. Default is None.
+    sub : str
+        Subject identifier.
     ses : str or None, optional
         Session identifier. Default is None.
-    n_procs : int, optional
-        Number of processes for MRIQC job. Default is 1.
     """
+
+    if 'n_procs' not in mriqc_config.keys():
+        n_procs = 1
+    else:
+        n_procs = int(mriqc_config['n_procs'])
+
     # Run MRIQC anat
-    anat_config = mriqc_config['anat']['mod']
+    anat_config = mriqc_config['anat']
     for modality in anat_config.keys():
         kwarg_str = ''
-        settings_dict = anat_config[modality]['mriqc_settings']
+        settings_dict = anat_config[modality]
         for field in settings_dict.keys():
             if isinstance(settings_dict[field], list):
                 val = ' '.join(settings_dict[field])
@@ -54,42 +55,42 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
         kwarg_str = kwarg_str.rstrip()
         cmd = ('singularity run --cleanenv '
                '-B {templateflow_dir}:$HOME/.cache/templateflow '
-               '{sing} {bids} {out} participant '
+               '{mriqc} {bids_dir} {out_dir} participant '
                '--no-sub --verbose-reports '
-               '-m {mod} '
-               '-w {work} --n_procs {n_procs} '
+               '-m {modality} '
+               '-w {work_dir} --n_procs {n_procs} '
                '{kwarg_str}'.format(
                    templateflow_dir=templateflow_dir,
-                   sing=mriqc_singularity,
-                   bids=bids_dir,
-                   out=out_dir,
-                   mod=modality,
-                   work=work_dir,
+                   mriqc=mriqc_singularity,
+                   bids_dir=bids_dir,
+                   out_dir=out_dir,
+                   modality=modality,
+                   work_dir=work_dir,
                    n_procs=n_procs,
                    kwarg_str=kwarg_str))
         run(cmd)
 
     # Run MRIQC func
-    func_config = mriqc_config['func']['task']
+    func_config = mriqc_config['func']
     for task in func_config.keys():
         run_mriqc = False
-        task_json_fname = (
-            'sub-{sub}/func/sub-{sub}_task-{task}_run-01_bold.'
-            'json'.format(sub=sub, task=task))
-        if ses:
-            task_json_fname = (
-                'sub-{sub}/ses-{ses}/func/sub-{sub}_ses-{ses}_'
-                'task-{task}_run-01_bold.json'.format(
-                    sub=sub, ses=ses, task=task))
-        task_json_file = op.join(
+        task_json_files = glob(op.join(
             bids_dir,
-            task_json_fname)
-        if op.isfile(task_json_file):
+            'sub-{sub}/func/sub-{sub}_*_task-{task}_*_bold.'
+            'json'.format(sub=sub, task=task)))
+        if ses:
+            task_json_files = glob(op.join(
+                bids_dir,
+                'sub-{sub}/ses-{ses}/func/sub-{sub}_ses-{ses}_*_'
+                'task-{task}_*_bold.json'.format(
+                    sub=sub, ses=ses, task=task)))
+
+        if len(task_json_files):
             run_mriqc = True
 
         if run_mriqc:
             kwarg_str = ''
-            settings_dict = func_config[task]['mriqc_settings']
+            settings_dict = func_config[task]
             for field in settings_dict.keys():
                 if isinstance(settings_dict[field], list):
                     val = ' '.join(settings_dict[field])
@@ -99,66 +100,25 @@ def run_mriqc(bids_dir, templateflow_dir, mriqc_singularity, work_dir,
             kwarg_str = kwarg_str.rstrip()
             cmd = ('singularity run --cleanenv '
                    '-B {templateflowdir}:$HOME/.cache/templateflow '
-                   '{sing} {bids} {out} participant '
+                   '{mriqc} {bids_dir} {out_dir} participant '
                    '--no-sub --verbose-reports '
                    '--task-id {task} -m bold '
-                   '-w {work} --n_procs {n_procs} --correct-slice-timing '
+                   '-w {work_dir} --n_procs {n_procs} --correct-slice-timing '
                    '{kwarg_str}'.format(
                        templateflowdir=templateflow_dir,
-                       sing=mriqc_singularity,
-                       bids=bids_dir,
-                       out=out_dir,
+                       mriqc=mriqc_singularity,
+                       bids_dir=bids_dir,
+                       out_dir=out_dir,
                        task=task,
-                       work=work_dir,
+                       work_dir=work_dir,
                        n_procs=n_procs,
                        kwarg_str=kwarg_str))
             run(cmd)
 
 
-def merge_mriqc_derivatives(source_dir, target_dir):
-    """Merge MRIQC results into final derivatives folder.
-
-    Parameters
-    ----------
-    source_dir : str
-        Path to existing MRIQC derivatives folder. Files from source_dir are
-        merged into target_dir.
-    target_dir : str
-        Path to existing MRIQC derivatives folder. Files from source_dir are
-        merged into target_dir.
-    """
-    reports = glob(op.join(source_dir, '*.html'))
-    reports = [f for f in reports if 'group_' not in op.basename(f)]
-    for report in reports:
-        shutil.copy(report, op.join(target_dir, op.basename(report)))
-
-    logs = glob(op.join(source_dir, 'logs/*'))
-    for log in logs:
-        shutil.copy(log, op.join(target_dir, 'logs', op.basename(log)))
-
-    derivatives = glob(op.join(source_dir, 'sub-*'))
-    derivatives = [x for x in derivatives if '.html' not in op.basename(x)]
-    for derivative in derivatives:
-        shutil.copytree(
-            derivative,
-            op.join(target_dir, op.basename(derivative))
-        )
-
-    csv_files = glob(op.join(source_dir, '*.csv'))
-    for csv_file in csv_files:
-        out_file = op.join(target_dir, op.basename(csv_file))
-        if not op.isfile(out_file):
-            shutil.copyfile(csv_file, out_file)
-        else:
-            new_df = pd.read_csv(csv_file)
-            old_df = pd.read_csv(out_file)
-            out_df = pd.concat((old_df, new_df))
-            out_df.to_csv(out_file, line_terminator='\n', index=False)
-
-
 def mriqc_group(bids_dir, config, work_dir=None, sub=None, ses=None,
-                participant=False, group=False, n_procs=1):
-    """I don't know what this does."""
+                participant=False, group=False):
+    """Run group-level MRIQC."""
     CIS_DIR = '/scratch/cis_dataqc/'
 
     # Check inputs
@@ -168,14 +128,13 @@ def mriqc_group(bids_dir, config, work_dir=None, sub=None, ses=None,
     if not op.isfile(config):
         raise ValueError('Argument "config" must be an existing file.')
 
-    if n_procs < 1:
-        raise ValueError('Argument "n_procs" must be positive integer greater '
-                         'than zero.')
-    else:
-        n_procs = int(n_procs)
-
     with open(config, 'r') as fo:
         mriqc_config = json.load(fo)
+
+    if 'n_procs' not in mriqc_config.keys():
+        n_procs = 1
+    else:
+        n_procs = int(mriqc_config['n_procs'])
 
     if 'project' not in mriqc_config.keys():
         raise Exception('Config File must be updated with project field'
@@ -207,11 +166,11 @@ def mriqc_group(bids_dir, config, work_dir=None, sub=None, ses=None,
 
     if group:
         shutil.copytree(out_deriv_dir, out_dir)
-        cmd = ('{sing} {bids} {out} group --no-sub --verbose-reports '
-               '-w {work} --n_procs {n_procs} '.format(
-                   sing=scratch_mriqc, bids=bids_dir,
-                   out=out_dir,
-                   work=scratch_mriqc_work_dir, n_procs=n_procs))
+        cmd = ('{mriqc} {bids_dir} {out_dir} group --no-sub --verbose-reports '
+               '-w {work_dir} --n_procs {n_procs} '.format(
+                   mriqc=scratch_mriqc, bids_dir=bids_dir,
+                   out_dir=out_dir,
+                   work_dir=scratch_mriqc_work_dir, n_procs=n_procs))
         run(cmd)
 
     for modality in ['bold', 'T1w', 'T2w']:

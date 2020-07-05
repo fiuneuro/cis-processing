@@ -3,7 +3,7 @@
 
 This workflow does the following:
 1. Copy XNAT downloader Singularity image to scratch.
-2. Download tarfile using XNAT downloader.
+2. Download tarball using XNAT downloader.
 3. Run protocol check on downloaded data.
 4. Email project-related personnel warnings about missing data based on protocol check.
 5. Submit conversion_workflow as a job.
@@ -68,19 +68,11 @@ def _get_parser():
         default=None,
         help='XNAT Experiment ID (i.e., XNAT_E*) for single '
              'session download.')
-    parser.add_argument(
-        '--n_procs',
-        required=False,
-        dest='n_procs',
-        help='Number of processes with which to run MRIQC.',
-        default=1,
-        type=int)
     return parser
 
 
-def main(bids_dir, config, work_dir=None,
-         protocol_check=False, autocheck=False,
-         xnatexp=None, n_procs=1):
+def main(bids_dir, config, work_dir=None, protocol_check=False,
+         autocheck=False, xnatexp=None):
     """Runtime for CIS processing."""
     CIS_DIR = '/scratch/cis_dataqc/'
 
@@ -94,12 +86,6 @@ def main(bids_dir, config, work_dir=None,
 
     if not op.isfile(config):
         raise ValueError('Argument "config" must be an existing file.')
-
-    if n_procs < 1:
-        raise ValueError('Argument "n_procs" must be positive integer greater '
-                         'than zero.')
-    else:
-        n_procs = int(n_procs)
 
     with open(config, 'r') as fo:
         config_options = json.load(fo)
@@ -141,7 +127,7 @@ def main(bids_dir, config, work_dir=None,
         op.join(
             proj_work_dir,
             '{0}-processed.txt'.format(config_options['project'])),
-        sep='\t', line_terminator='\n', index=False)
+        sep='\t', line_terminator='\n', na_rep='n/a', index=False)
 
     # Copy singularity images to scratch
     scratch_xnatdownload = op.join(work_dir, op.basename(xnatdownload_file))
@@ -154,10 +140,10 @@ def main(bids_dir, config, work_dir=None,
         tar_list = op.join(
             proj_work_dir,
             '{0}-processed.txt'.format(config_options['project']))
-        cmd = ('{sing} -w {work} --project {proj} --autocheck --processed '
+        cmd = ('{sing} -w {work_dir} --project {proj} --autocheck --processed '
                '{tar_list}'.format(
                    sing=scratch_xnatdownload,
-                   work=proj_work_dir,
+                   work_dir=proj_work_dir,
                    proj=config_options['project'],
                    tar_list=tar_list))
         run(cmd)
@@ -165,10 +151,10 @@ def main(bids_dir, config, work_dir=None,
         tar_list = op.join(
             proj_work_dir,
             '{0}-processed.txt'.format(config_options['project']))
-        cmd = ('{sing} -w {work} --project {proj} --session {xnat_exp} '
+        cmd = ('{sing} -w {work_dir} --project {proj} --session {xnat_exp} '
                '--processed {tar_list}'.format(
                    sing=scratch_xnatdownload,
-                   work=proj_work_dir,
+                   work_dir=proj_work_dir,
                    proj=config_options['project'],
                    xnat_exp=xnatexp,
                    tar_list=tar_list))
@@ -192,11 +178,11 @@ def main(bids_dir, config, work_dir=None,
             for tmp_ses in ses_list:
                 # run the protocol check if requested
                 if protocol_check:
-                    cmd = ('python {fdir}/protocol_check.py -w {work} '
+                    cmd = ('python {fdir}/protocol_check.py -w {work_dir} '
                            '--bids_dir {bids_dir} '
                            '--sub {sub} --ses {ses}'.format(
                                fdir=fdir,
-                               work=raw_work_dir,
+                               work_dir=raw_work_dir,
                                bids_dir=bids_dir,
                                sub=tmp_sub,
                                ses=tmp_ses))
@@ -206,12 +192,12 @@ def main(bids_dir, config, work_dir=None,
                 if not op.isdir(op.join(raw_dir, tmp_sub, tmp_ses)):
                     os.makedirs(op.join(raw_dir, tmp_sub, tmp_ses))
 
-                tar_file = op.join(
+                tarball = op.join(
                     raw_dir,
                     '{sub}/{ses}/{sub}-{ses}.tar'.format(
                         sub=tmp_sub, ses=tmp_ses)
                 )
-                with tarfile.open(tar_file, 'w') as tar:
+                with tarfile.open(tarball, 'w') as tar:
                     tar.add(
                         op.join(raw_work_dir, tmp_sub),
                         arcname=op.basename(op.join(raw_work_dir, tmp_sub)))
@@ -223,14 +209,14 @@ def main(bids_dir, config, work_dir=None,
                 tmp_df['ses'] = tmp_ses
                 tmp_df['file'] = '{sub}-{ses}.tar'.format(
                     sub=tmp_sub, ses=tmp_ses)
-                moddate = os.path.getmtime(tar_file)
+                moddate = os.path.getmtime(tarball)
                 timedateobj = datetime.datetime.fromtimestamp(moddate)
                 tmp_df['creation'] = datetime.datetime.strftime(
                     timedateobj, "%m/%d/%Y, %H:%M")
                 scans_df = scans_df.append(tmp_df)
                 scans_df.to_csv(
                     op.join(raw_dir, 'scans.tsv'), sep='\t',
-                    line_terminator='\n', index=False)
+                    line_terminator='\n', na_rep='n/a', index=False)
 
                 # run conversion_workflow.py
                 err_file = op.join(
@@ -245,22 +231,21 @@ def main(bids_dir, config, work_dir=None,
                        '-e {err_file_loc} -o {out_file_loc} '
                        '-c {nprocs} --qos {hpc_queue} --account {hpc_acct} '
                        '-p centos7 '
-                       '--wrap="python {fdir}/conversion_workflow.py -t {tarfile} '
-                       '-b {bidsdir} -w {work} --config {config} '
-                       '--sub {sub} --ses {ses} --n_procs {nprocs}"'.format(
+                       '--wrap="python {fdir}/conversion_workflow.py -t {tarball} '
+                       '-b {bids_dir} -w {work_dir} --config {config} '
+                       '--sub {sub} --ses {ses}"'.format(
                            fdir=fdir,
                            hpc_queue=config_options['hpc_queue'],
                            hpc_acct=config_options['hpc_account'],
                            proj=config_options['project'],
                            err_file_loc=err_file,
                            out_file_loc=out_file,
-                           tarfile=tar_file,
-                           bidsdir=bids_dir,
-                           work=proj_work_dir,
+                           tarball=tarball,
+                           bids_dir=bids_dir,
+                           work_dir=proj_work_dir,
                            config=config,
                            sub=tmp_sub.strip('sub-'),
-                           ses=tmp_ses.strip('ses-'),
-                           nprocs=n_procs))
+                           ses=tmp_ses.strip('ses-')))
                 run(cmd)
 
                 # get date and time

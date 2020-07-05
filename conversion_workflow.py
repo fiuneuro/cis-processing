@@ -2,9 +2,9 @@
 """The full cis-processing workflow.
 
 This workflow does the following:
-1. Copy raw data tarfile to scratch.
+1. Copy raw data tarball to scratch.
 2. Copy necessary Singularity images to scratch.
-3. Run BIDSifier Singularity image on tarfile.
+3. Run BIDSifier Singularity image on tarball.
 4. Merge mini BIDS dataset in /scratch into main BIDS dataset in /data.
 5. Run MRIQC Singularity image on new mini-BIDS dataset.
 6. Merge MRIQC derivatives in /scratch into main derivatives folder in /data.
@@ -20,16 +20,17 @@ import getpass
 import argparse
 
 from utils import run
-from dataset import merge_datasets
-from mriqc import run_mriqc, merge_mriqc_derivatives
+from mriqc import run_mriqc
 
 
 def _get_parser():
-    parser = argparse.ArgumentParser(description='Run MRIQC on BIDS dataset.')
+    parser = argparse.ArgumentParser(
+        description='Convert incoming data to BIDS format and run MRIQC on '
+                    'it with a set of Singularity images.')
     parser.add_argument(
-        '-t', '--tarfile',
+        '-t', '--tarball',
         required=True,
-        dest='tar_file',
+        dest='tarball',
         help='Tarred file containing raw (dicom) data.')
     parser.add_argument(
         '-b', '--bidsdir',
@@ -61,16 +62,16 @@ def _get_parser():
         help='Session number',
         default=None)
     parser.add_argument(
-        '--n_procs',
+        '--datalad',
         required=False,
-        dest='n_procs',
-        help='Number of processes with which to run MRIQC.',
-        default=1,
-        type=int)
+        action='store_true',
+        dest='datalad',
+        help='Whether to use datalad to track changes or not.',
+        default=False)
     return parser
 
 
-def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
+def main(tarball, bids_dir, config, sub, ses=None, work_dir=None, datalad=False):
     """Runtime for conversion_workflow.py."""
     CIS_DIR = '/scratch/cis_dataqc/'
 
@@ -78,48 +79,40 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     if work_dir is None:
         work_dir = CIS_DIR
 
-    if not op.isfile(tar_file) or not tar_file.endswith('.tar'):
-        raise ValueError('Argument "tar_file" must be an existing file with '
+    if not op.isfile(tarball) or not tarball.endswith('.tar'):
+        raise ValueError('Argument "tarball" must be an existing file with '
                          'the suffix ".tar".')
 
     if not op.isfile(config):
         raise ValueError('Argument "config" must be an existing file.')
 
-    if n_procs < 1:
-        raise ValueError('Argument "n_procs" must be positive integer greater '
-                         'than zero.')
-    else:
-        n_procs = int(n_procs)
-
     with open(config, 'r') as fo:
         config_options = json.load(fo)
 
     if 'project' not in config_options.keys():
-        raise Exception('Config File must be updated with project field'
-                        'See Sample Config File for More information')
+        raise Exception('Config file must include a "project" field. '
+                        'See sample config file for more information')
 
     scan_work_dir = op.join(
-        work_dir, '{0}-{1}'.format(config_options['project'], sub))
-    if ses:  # If ses is specified, append -<ses-name> to workdir
-        scan_work_dir += '-{0}'.format(ses)
+        work_dir,
+        '{0}-{1}-{2}'.format(config_options['project'], sub, ses)
+    )
 
     if not scan_work_dir.startswith('/scratch'):
         raise ValueError('Working directory must be in scratch.')
 
-    bidsifier_file = op.join('/home/data/cis/singularity-images/',
-                             config_options['bidsifier'])
-    mriqc_file = op.join('/home/data/cis/singularity-images/',
-                         config_options['mriqc'])
+    singularity_dir = '/home/data/cis/singularity-images/'
+    bidsifier_file = op.join(singularity_dir, config_options['bidsifier'])
+    mriqc_file = op.join(singularity_dir, config_options['mriqc'])
     mriqc_version = re.search(r'_([\d.]+)', mriqc_file).group(1)
-
-    out_deriv_dir = op.join(bids_dir,
+    mriqc_out_dir = op.join(bids_dir,
                             'derivatives/mriqc-{0}'.format(mriqc_version))
 
     if not op.isfile(bidsifier_file):
-        raise ValueError('BIDSifier image specified in config files must be '
+        raise ValueError('BIDSifier image specified in config file must be '
                          'an existing file.')
     if not op.isfile(mriqc_file):
-        raise ValueError('MRIQC image specified in config files must be '
+        raise ValueError('MRIQC image specified in config file must be '
                          'an existing file.')
 
     # Make folders/files
@@ -128,6 +121,10 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
 
     if not op.isdir(bids_dir):
         os.makedirs(bids_dir)
+
+    # Change directory to parent folder of bids_dir to give Singularity images
+    # access to relevant directories.
+    os.chdir(op.dirname(bids_dir))
 
     # Additional checks and copying for heuristic file
     heuristic = config_options['heuristic']
@@ -149,6 +146,7 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     # Copy singularity images to scratch
     scratch_bidsifier = op.join(scan_work_dir, op.basename(bidsifier_file))
     scratch_mriqc = op.join(scan_work_dir, op.basename(mriqc_file))
+
     if not op.isfile(scratch_bidsifier):
         shutil.copyfile(bidsifier_file, scratch_bidsifier)
         os.chmod(scratch_bidsifier, 0o775)
@@ -157,9 +155,6 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
         shutil.copyfile(mriqc_file, scratch_mriqc)
         os.chmod(scratch_mriqc, 0o775)
 
-    # Temporary BIDS directory in work_dir
-    scratch_bids_dir = op.join(scan_work_dir, 'bids')
-    scratch_deriv_dir = op.join(scratch_bids_dir, 'derivatives')
     mriqc_work_dir = op.join(scan_work_dir, 'work')
 
     # Copy tar file to work_dir
@@ -167,38 +162,32 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     if ses:  # If session is specified, replace .tar and add -ses-<session>.tar
         work_tar_file = work_tar_file.replace(
             '.tar', '-ses-{0}.tar'.format(ses))
-    shutil.copyfile(tar_file, work_tar_file)
+    shutil.copyfile(tarball, work_tar_file)
 
     # Run BIDSifier
-    cmd = ('{sing} -d {work} --heuristic {heur} --sub {sub} '
-           '--ses {ses} -o {outdir}'.format(
-               sing=scratch_bidsifier, work=work_tar_file,
+    cmd = ('{sing} -d {input} --heuristic {heur} --sub {sub} '
+           '--ses {ses} -o {outdir} -w {workdir} {datalad_flag}'.format(
+               sing=scratch_bidsifier, input=work_tar_file,
                heur=scratch_heuristic,
-               sub=sub, ses=ses, outdir=op.join(scan_work_dir, 'bids')))
+               sub=sub, ses=ses, outdir=bids_dir, workdir=scan_work_dir,
+               datalad_flag='--datalad' if datalad else ''))
     run(cmd)
 
     # Check if BIDSification ran successfully
     bids_successful = False
-    with open(op.join(scratch_bids_dir, 'validator.txt'), 'r') as fo:
+    with open(op.join(scan_work_dir, 'validator.txt'), 'r') as fo:
         validator_result = fo.read()
 
     if 'This dataset appears to be BIDS compatible' in validator_result:
         bids_successful = True
-    os.remove(op.join(scratch_bids_dir, 'validator.txt'))
 
     if not bids_successful:
         raise RuntimeError('Heudiconv-generated dataset failed BIDS validator. '
                            'Not running MRIQC')
 
-    # If BIDSification was successful, merge new files into full BIDS dataset
-    merge_datasets(scratch_bids_dir, bids_dir, config_options['project'], sub, ses)
-
     # MRIQC time
-    if not op.isdir(out_deriv_dir):
-        os.makedirs(out_deriv_dir)
-
-    if not op.isdir(op.join(out_deriv_dir, 'logs')):
-        os.makedirs(op.join(out_deriv_dir, 'logs'))
+    if not op.isdir(mriqc_out_dir):
+        os.makedirs(mriqc_out_dir)
 
     if not op.isdir(op.join(work_dir, 'templateflow')):
         shutil.copytree('/home/data/cis/templateflow', op.join(work_dir, 'templateflow'))
@@ -208,10 +197,11 @@ def main(tar_file, bids_dir, config, sub, ses=None, work_dir=None, n_procs=1):
     if not op.isdir(templateflow_dir):
         os.makedirs(templateflow_dir)
 
-    run_mriqc(bids_dir, templateflow_dir, scratch_mriqc, mriqc_work_dir,
-              scratch_deriv_dir, config_options['mriqc_settings'],
-              sub=sub, ses=ses, n_procs=n_procs)
-    merge_mriqc_derivatives(scratch_deriv_dir, out_deriv_dir)
+    run_mriqc(bids_dir=bids_dir, templateflow_dir=templateflow_dir,
+              mriqc_singularity=scratch_mriqc, work_dir=mriqc_work_dir,
+              out_dir=mriqc_out_dir,
+              mriqc_config=config_options['mriqc_settings'],
+              sub=sub, ses=ses)
 
     # Finally, clean up working directory *if successful*
     shutil.rmtree(scan_work_dir)

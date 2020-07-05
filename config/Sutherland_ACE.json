@@ -8,32 +8,23 @@
     "mriqc": "poldracklab_mriqc_0.10.4-2018-03-23-8fb5f5e9184f.img",
     "mriqc_options": {
         "anat": {
-            "mod": {
-                "T1w": {
-                    "mriqc_settings": {
-                    }
-                }
+            "T1w": {
+            },
+            "T2w": {
             }
         },
         "func": {
-            "task": {
-                "mid": {
-                    "mriqc_settings": {
-                        "fd_thres": 0.6
-                    }
-                },
-                "nback": {
-                    "mriqc_settings": {
-                        "fd_thres": 0.6
-                    }
-                },
-                "rest": {
-                    "mriqc_settings": {
-                        "fd_thres": 0.3
-                    }
-                }
+            "mid": {
+                "fd_thres": 0.6
+            },
+            "nback": {
+                "fd_thres": 0.6
+            },
+            "rest": {
+                "fd_thres": 0.2
             }
-        }
+        },
+        "n_procs": 1
     },
    "fmriprep": "",
    "email": "miriedel@fiu.edu masuther@fiu.edu jflan008@fiu.edu nhidmi@fiu.edu"
